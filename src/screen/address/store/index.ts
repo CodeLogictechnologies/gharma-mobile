@@ -18,7 +18,11 @@ type AddressStoreType = {
   selectedAddressId: string | null;
   selectedApiAddressId: string | null;
   hydrated: boolean;
-
+  prefetchedLocation: { latitude: number; longitude: number } | null;
+  setPrefetchedLocation: (coords: {
+    latitude: number;
+    longitude: number;
+  }) => void;
   setHydrated: (v: boolean) => void;
   addAddress: (data: Omit<AddressItem, "id" | "createdAt">) => void;
   updateAddress: (
@@ -32,9 +36,6 @@ type AddressStoreType = {
   getSelectedAddress: () => AddressItem | null;
   getDefaultAddress: () => AddressItem | null;
   hasAddress: () => boolean;
-
-  skipped: boolean;
-  setSkipped: (v: boolean) => void;
   clearAll: () => void;
 };
 
@@ -45,9 +46,9 @@ export const useAddressStore = create<AddressStoreType>()(
       selectedAddressId: null,
       selectedApiAddressId: null,
       hydrated: false,
+      prefetchedLocation: null,
 
-      skipped: false,
-      setSkipped: (v) => set({ skipped: v }),
+      setPrefetchedLocation: (coords) => set({ prefetchedLocation: coords }),
       setHydrated: (v) => set({ hydrated: v }),
 
       clearAll: () =>

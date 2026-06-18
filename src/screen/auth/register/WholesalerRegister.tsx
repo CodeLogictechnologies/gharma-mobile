@@ -43,6 +43,9 @@ const wholesalerRegisterSchema = yup.object({
   company_name: yup.string().required("Company Name is required"),
   tax_number: yup.string().required("Tax Number is required"),
   registration_number: yup.string().required("Registration Number is required"),
+  registration_number_image: yup.string().ensure(),
+  pan_number: yup.string().ensure(),
+  pan_image: yup.string().ensure(),
 });
 
 export interface WholesalerRegisterFormData extends yup.InferType<
@@ -70,6 +73,12 @@ const WholesalerRegister = () => {
       password: "",
       password_confirmation: "",
       image: "",
+      company_name: "",
+      tax_number: "",
+      registration_number: "",
+      registration_number_image: "",
+      pan_number: "",
+      pan_image: "",
     },
   });
 
@@ -225,6 +234,41 @@ const WholesalerRegister = () => {
             label="Registration Number"
             errorMessage={errors.registration_number?.message}
           />
+
+          <View className="mb-2">
+            <Text className="text-sm font-semibold text-gray-700 mb-1.5">
+              Registration Number Image
+            </Text>
+            <FormImagePicker
+              control={control}
+              name="registration_number_image"
+            />
+            {errors.registration_number_image && (
+              <Text className="text-red-500 text-xs mt-1">
+                {errors.registration_number_image.message}
+              </Text>
+            )}
+          </View>
+
+          <FormInput
+            control={control}
+            name="pan_number"
+            label="PAN Number"
+            errorMessage={errors.pan_number?.message}
+          />
+
+          {/* PAN Image */}
+          <View className="mb-2">
+            <Text className="text-sm font-semibold text-gray-700 mb-1.5">
+              PAN Image
+            </Text>
+            <FormImagePicker control={control} name="pan_image" />
+            {errors.pan_image && (
+              <Text className="text-red-500 text-xs mt-1">
+                {errors.pan_image.message}
+              </Text>
+            )}
+          </View>
 
           <TouchableOpacity
             onPress={handleSubmit(onSubmit)}

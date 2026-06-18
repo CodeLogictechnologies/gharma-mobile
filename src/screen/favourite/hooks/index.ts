@@ -2,24 +2,32 @@ import { request } from "@/api/axios";
 import { queryClient } from "@/libs/query";
 import { useAuthStore } from "@/store/useAuth";
 import { CommonAPIResponse } from "@/types";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation } from "@tanstack/react-query";
 import { useToast } from "heroui-native";
 import { FavouriteAPIResponse, FavouriteItemBody } from "../types";
 
 export const useGetFavouriteList = () => {
   const token = useAuthStore((s) => s.token);
 
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: ["GetFavouriteList"],
     enabled: !!token,
-    queryFn: () =>
+    initialPageParam: 1,
+    queryFn: ({ pageParam = 1 }) =>
       request<FavouriteAPIResponse>({
         url: `/user/favourite/list`,
         method: "GET",
+        params: { page: pageParam, per_page: 20 },
       }),
+    getNextPageParam: (lastPage) => {
+      const pagination = lastPage?.pagination;
+      if (pagination?.has_more && pagination?.next_page) {
+        return pagination.next_page;
+      }
+      return undefined;
+    },
   });
 };
-
 export const useSaveToFavourite = () => {
   const { toast } = useToast();
 

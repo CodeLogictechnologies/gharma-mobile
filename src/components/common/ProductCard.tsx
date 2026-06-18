@@ -1,87 +1,139 @@
-// components/common/ProductCard.tsx
+import {
+  getPriceRange,
+  isWholesalerItem,
+  resolvePrice,
+} from "@/libs/pricehelper";
 import { useGuestCartStore } from "@/screen/cart/store/GuestCartItem";
 import { useAuthStore } from "@/store/useAuth";
 import { router } from "expo-router";
 import { Minus, Plus } from "lucide-react-native";
-import React, { useRef } from "react";
-import { View as RNView, Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Keyboard,
+  View as RNView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import Animated, { FadeIn, FadeOut, ZoomIn } from "react-native-reanimated";
+import { type ProductItem } from "../../screen/home/types";
 
 interface ProductCardProps {
-  variationid: string | number;
-  productid?: string | number;
-  images: string[] | string;
-  title: string;
-  price: number | string;
-  oldPrice?: number | string;
-  discount?: string | number;
+  item: ProductItem;
   onAddToCart?: () => void;
   onRemoveAddToCart?: () => void;
   isGrid?: boolean;
+  cardWidth?: number;
+  quantity?: number;
 }
 
 const ProductCard = ({
-  variationid,
-  productid,
-  images,
-  title,
-  price,
-  oldPrice,
-  discount,
+  item,
   onAddToCart,
   onRemoveAddToCart,
   isGrid = false,
+  cardWidth,
+  quantity: propQuantity,
 }: ProductCardProps) => {
+  const { variationid, productid, images, title } = item;
+
   const imageRef = useRef<RNView>(null);
-  const CARD_WIDTH = isGrid ? 100 : 128;
+  const inputRef = useRef<TextInput>(null);
+  const CARD_WIDTH = cardWidth ?? (isGrid ? 100 : 128);
   const IMAGE_HEIGHT = CARD_WIDTH;
 
   const token = useAuthStore((s) => s.token);
-  const { addItem, removeItem, getItemQuantity } = useGuestCartStore();
+  const { addItem, removeItem, updateQuantity } = useGuestCartStore();
 
-  // Reactive: subscribes to store changes, re-renders when quantity changes
-  // For auth users this will always be 0 — it's ignored in that branch
   const guestQuantity = useGuestCartStore(
     (s) =>
       s.items.find((i) => String(i.variation_id) === String(variationid))
         ?.quantity ?? 0,
   );
 
-  // Auth users: quantity is managed server-side, we don't track it locally
-  // Guest users: quantity comes directly from the store (reactive)
-  const quantity = token ? 0 : guestQuantity;
+  const quantity = Number(propQuantity ?? guestQuantity);
+  const [inputValue, setInputValue] = useState(String(quantity));
+
+  useEffect(() => {
+    setInputValue(String(quantity));
+  }, [quantity]);
+
+  const wholesaler = isWholesalerItem(item);
+  const { low, high, minQty } = getPriceRange(item);
+  const effectivePrice = resolvePrice(item, Math.max(quantity, 1));
 
   const imageList = Array.isArray(images)
     ? images.filter(Boolean)
     : images
       ? [images]
       : [];
-
   const firstImage = imageList[0] ?? null;
   const extraImages = imageList.slice(1);
 
   const handleQuantity = (action: "add" | "remove") => {
     if (token) {
-      // Auth user — delegate entirely to server via parent callbacks
-      if (action === "add") {
-        onAddToCart?.();
-      } else {
-        onRemoveAddToCart?.();
-      }
+      action === "add" ? onAddToCart?.() : onRemoveAddToCart?.();
     } else {
-      // Guest user — write to local Zustand store, UI updates reactively
       if (action === "add") {
         addItem({
           variation_id: variationid,
           productid,
           title,
           image: typeof images === "string" ? images : (images?.[0] ?? ""),
-          price,
+          price: resolvePrice(item, quantity + 1),
         });
       } else {
         removeItem(variationid);
       }
     }
+  };
+
+  const handleInputChange = (text: string) => {
+    // Allow empty string while typing so user can clear and retype
+    setInputValue(text.replace(/[^0-9]/g, ""));
+  };
+
+  const handleInputSubmit = () => {
+    const raw = inputValue.trim();
+
+    // Treat empty input as 0 (remove)
+    const newQuantity = raw === "" ? 0 : parseInt(raw, 10);
+
+    if (isNaN(newQuantity) || newQuantity < 0) {
+      // Invalid — restore current quantity, do nothing
+      setInputValue(String(quantity));
+      return;
+    }
+
+    if (newQuantity === quantity) {
+      // No change
+      setInputValue(String(quantity));
+      Keyboard.dismiss();
+      return;
+    }
+
+    if (token) {
+      const delta = newQuantity - quantity;
+
+      if (delta > 0) {
+        for (let i = 0; i < delta; i++) {
+          onAddToCart?.();
+        }
+      } else {
+        for (let i = 0; i < Math.abs(delta); i++) {
+          onRemoveAddToCart?.();
+        }
+      }
+    } else {
+      if (newQuantity === 0) {
+        removeItem(variationid);
+      } else {
+        updateQuantity(variationid, newQuantity);
+      }
+    }
+
+    Keyboard.dismiss();
   };
 
   const handlePress = () => {
@@ -90,6 +142,7 @@ const ProductCard = ({
         pathname: "/productdetails",
         params: {
           id: String(variationid),
+          title,
           imageUri: firstImage,
           sourceX: pageX,
           sourceY: pageY,
@@ -99,6 +152,42 @@ const ProductCard = ({
         },
       });
     });
+  };
+
+  const renderPrice = () => {
+    const { low, high, minQty } = getPriceRange(item);
+
+    if (wholesaler) {
+      return (
+        <View className="mt-0.5">
+          <View className="flex-row items-baseline flex-wrap gap-0.5">
+            <Text className="text-slate-900 font-extrabold text-sm font-inter">
+              Rs. {low}
+            </Text>
+            <Text className="text-slate-400 text-xs"> - </Text>
+            <Text className="text-slate-900 font-extrabold text-sm font-inter">
+              Rs. {high}
+            </Text>
+          </View>
+          <Text className="text-slate-400 text-[10px] font-medium mt-0.5">
+            Min. qty {minQty}
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <View className="flex-row items-center">
+        <Text className="text-slate-900 font-extrabold text-sm font-inter">
+          Rs. {low}
+        </Text>
+        {item?.original_price && (
+          <Text className="text-slate-400 line-through text-xxs ml-2 font-inter">
+            Rs. {item?.original_price}
+          </Text>
+        )}
+      </View>
+    );
   };
 
   return (
@@ -165,13 +254,26 @@ const ProductCard = ({
                 <Minus size={14} color="white" strokeWidth={3} />
               </TouchableOpacity>
 
-              <Animated.Text
-                key={quantity}
-                entering={ZoomIn.duration(200)}
-                className="text-white font-bold mx-3 text-sm"
-              >
-                {quantity}
-              </Animated.Text>
+              <Animated.View key={quantity} entering={ZoomIn.duration(200)}>
+                <TextInput
+                  ref={inputRef}
+                  value={inputValue}
+                  onChangeText={handleInputChange}
+                  onBlur={handleInputSubmit}
+                  onSubmitEditing={handleInputSubmit}
+                  keyboardType="numeric"
+                  selectTextOnFocus
+                  style={{
+                    color: "white",
+                    fontWeight: "bold",
+                    fontSize: 14,
+                    padding: 0,
+                    margin: 0,
+                    minWidth: 24,
+                    textAlign: "center",
+                  }}
+                />
+              </Animated.View>
 
               <TouchableOpacity
                 onPress={() => handleQuantity("add")}
@@ -185,20 +287,13 @@ const ProductCard = ({
       </View>
 
       <TouchableOpacity onPress={handlePress} className="px-1 mt-4">
-        <Text className="text-green text-xs font-bold uppercase">
-          {`${discount ?? 20}% OFF`}
-        </Text>
-
-        <View className="flex-row items-center">
-          <Text className="text-slate-900 font-extrabold text-sm font-inter">
-            Rs. {price}
+        {!wholesaler && item?.discount_type === "percentage" && (
+          <Text className="text-green text-xs font-bold uppercase">
+            {`${parseInt(String(item?.discount_percentage)) || 0}% OFF`}
           </Text>
-          {oldPrice && (
-            <Text className="text-slate-400 line-through text-xxs ml-2 font-inter">
-              Rs. {oldPrice}
-            </Text>
-          )}
-        </View>
+        )}
+
+        {renderPrice()}
 
         <Text className="text-slate-400 text-[10px] font-medium uppercase mt-1">
           KTM CITY

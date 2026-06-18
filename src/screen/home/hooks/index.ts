@@ -2,22 +2,50 @@ import { request } from "@/api/axios";
 import { queryClient } from "@/libs/query";
 import { useAuthStore } from "@/store/useAuth";
 import { CommonAPIResponse } from "@/types";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { useToast } from "heroui-native";
 import {
   HomePageProductResponse,
+  HomeTabsResponse,
   OrderRequestBody,
   RecommendationResponse,
 } from "../types";
 
-export const useHomePageProductList = (tabName: string) => {
-  return useQuery({
-    queryKey: ["HomePageProductList", tabName],
-    queryFn: () =>
-      request<HomePageProductResponse>({
-        url: `/items/latest?tab_name=${tabName}`,
+type HomePageProductList = {
+  tab_id?: string;
+  category_id?: string;
+  subcategory_id?: string;
+};
+
+export const useHomePageProductList = ({
+  tab_id,
+  category_id,
+  subcategory_id,
+}: HomePageProductList) => {
+  return useInfiniteQuery({
+    queryKey: ["HomePageProductList", tab_id, category_id, subcategory_id],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => {
+      const queryParams: Record<string, string> = {
+        page: String(pageParam),
+      };
+
+      if (tab_id) queryParams.tab_id = tab_id;
+      if (category_id) queryParams.category_id = String(category_id);
+      if (subcategory_id) queryParams.subcategory_id = String(subcategory_id);
+
+      const params = new URLSearchParams(queryParams);
+
+      return request<HomePageProductResponse>({
+        url: `/items/latest?${params.toString()}`,
         method: "GET",
-      }),
+      });
+    },
+    getNextPageParam: (lastPage) => {
+      const pagination = lastPage.result?.pagination;
+      if (pagination?.has_more) return pagination.next_page;
+      return undefined;
+    },
   });
 };
 
@@ -33,18 +61,26 @@ export const useSearchPageProductList = (search: string, page: number = 1) => {
   });
 };
 
-export const useUserRecommendationList = () => {
+export const useUserRecommendationList = ({ tab_id }: { tab_id: string }) => {
   const token = useAuthStore((s) => s.token);
 
-  console.log("token", token);
-  return useQuery({
-    queryKey: ["UserRecommendationList"],
+  return useInfiniteQuery({
+    queryKey: ["UserRecommendationList", tab_id],
     enabled: !!token,
-    queryFn: () =>
+    initialPageParam: 1,
+    queryFn: ({ pageParam = 1 }) =>
       request<RecommendationResponse>({
         url: `/items/recommendation`,
         method: "GET",
+        params: { page: pageParam, tab_id },
       }),
+    getNextPageParam: (lastPage) => {
+      const pagination = lastPage?.result?.pagination;
+      if (pagination?.has_more && pagination?.next_page) {
+        return pagination.next_page;
+      }
+      return undefined;
+    },
   });
 };
 
@@ -79,5 +115,16 @@ export const useCheckout = () => {
 
       console.error("Error:", error.message);
     },
+  });
+};
+
+export const useHomeTabList = () => {
+  return useQuery({
+    queryKey: ["HomeTabList"],
+    queryFn: () =>
+      request<HomeTabsResponse>({
+        url: `/home`,
+        method: "GET",
+      }),
   });
 };

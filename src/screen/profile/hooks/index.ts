@@ -5,7 +5,7 @@ import { useAuthStore } from "@/store/useAuth";
 import { CommonAPIResponse } from "@/types";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useToast } from "heroui-native";
-import { UserProfileResponse } from "../types";
+import { LoyaltyPointResponse, UserProfileResponse } from "../types";
 
 export const useGetUserDetails = () => {
   const token = useAuthStore((s) => s.token);
@@ -16,6 +16,20 @@ export const useGetUserDetails = () => {
     queryFn: () =>
       request<UserProfileResponse>({
         url: `/user/detail`,
+        method: "GET",
+      }),
+  });
+};
+
+export const useUserLoyalty = () => {
+  const token = useAuthStore((s) => s.token);
+
+  return useQuery({
+    queryKey: ["UserLoyalty"],
+    enabled: !!token,
+    queryFn: () =>
+      request<LoyaltyPointResponse>({
+        url: `/loyalty/list`,
         method: "GET",
       }),
   });

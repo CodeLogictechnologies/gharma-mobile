@@ -1,9 +1,17 @@
 import ProductCarousel from "@/components/common/ProductCarousel";
+import SkeletonProductCard from "@/components/common/skeleton/ProductCarouselSkeleton";
 import { useProductDetails } from "@/screen/productdetails/hooks";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Skeleton } from "heroui-native";
 import LottieView from "lottie-react-native";
-import { ChevronLeft, ChevronRight, Heart, Share2 } from "lucide-react-native";
-import React, { useEffect, useRef, useState } from "react";
+import { ChevronLeft, Heart, Share2 } from "lucide-react-native";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Dimensions,
   FlatList,
@@ -29,11 +37,13 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useAddtoCart, useRemoveAddtoCart } from "../cart/hooks";
+import { useAddtoCart } from "../cart/hooks";
 import { useRemoveToFavourite, useSaveToFavourite } from "../favourite/hooks";
-import { useUserRecommendationList } from "../home/hooks";
+import {
+  useHomePageProductList,
+  useUserRecommendationList,
+} from "../home/hooks";
 import ImageViewerModal from "./component/ImageViewer";
-import ProductDetailsSkeleton from "./component/skeleton/ProductDetailsSkeleton";
 
 const { width } = Dimensions.get("window");
 const HEADER_SCROLL_THRESHOLD = 300;
@@ -44,18 +54,130 @@ const STAGGER_DELAY = 50;
 
 const HeartAnimation = require("@/../assets/animations/heart_pop.lottie");
 
+const SkeletonLine = ({
+  width: w,
+  height = 14,
+  style,
+}: {
+  width: number | string;
+  height?: number;
+  style?: object;
+}) => (
+  <Skeleton
+    style={[{ width: w, height, borderRadius: 6, marginBottom: 6 }, style]}
+    variant="shimmer"
+    animation={{ shimmer: { duration: 2000, speed: 1.5 } }}
+  />
+);
+
+const DescriptionSkeleton = () => (
+  <View style={{ marginTop: 8, marginBottom: 4 }}>
+    <SkeletonLine width="100%" />
+    <SkeletonLine width="90%" />
+    <SkeletonLine width="70%" />
+  </View>
+);
+
+const VariantsSkeleton = () => (
+  <View style={{ flexDirection: "row", paddingVertical: 16, gap: 12 }}>
+    <Skeleton
+      style={{ width: 130, height: 64, borderRadius: 8 }}
+      variant="shimmer"
+    />
+    <Skeleton
+      style={{ width: 130, height: 64, borderRadius: 8 }}
+      variant="shimmer"
+    />
+    <Skeleton
+      style={{ width: 130, height: 64, borderRadius: 8 }}
+      variant="shimmer"
+    />
+  </View>
+);
+
+const CarouselSkeleton = ({ showHeader = true }: { showHeader?: boolean }) => (
+  <View style={{ marginBottom: 16 }}>
+    {showHeader && (
+      <SkeletonLine width={150} height={18} style={{ marginBottom: 8 }} />
+    )}
+    <View style={{ flexDirection: "row", gap: 10 }}>
+      <SkeletonProductCard />
+      <SkeletonProductCard />
+      <SkeletonProductCard />
+    </View>
+  </View>
+);
+
+const BannerSkeleton = () => (
+  <Skeleton
+    style={{ width: "100%", height: 112, borderRadius: 8, marginBottom: 16 }}
+    variant="shimmer"
+    animation={{ shimmer: { duration: 2000, speed: 1.5 } }}
+  />
+);
+
+const ActionBarSkeleton = () => (
+  <View
+    style={{
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: 16,
+    }}
+  >
+    <View>
+      <SkeletonLine width={100} height={12} />
+      <SkeletonLine width={80} height={20} />
+      <SkeletonLine width={120} height={12} />
+    </View>
+    <Skeleton
+      style={{ width: 100, height: 44, borderRadius: 8 }}
+      variant="shimmer"
+    />
+  </View>
+);
+
+const FallbackGallery = ({
+  imageUri,
+  galleryStyle,
+}: {
+  imageUri: string;
+  galleryStyle: object;
+}) => (
+  <Animated.View
+    style={[{ width, height: "100%", position: "absolute" }, galleryStyle]}
+    pointerEvents="none"
+  >
+    <Image
+      source={{ uri: imageUri }}
+      style={{ width: "100%", height: "100%" }}
+      resizeMode="cover"
+    />
+  </Animated.View>
+);
+
 const ProductDetails = () => {
   const lottieRef = useRef<LottieView>(null);
   const router = useRouter();
   const {
     id,
+    title: paramTitle,
     sourceX,
     sourceY,
     sourceWidth,
     sourceHeight,
     sourceBorderRadius,
     imageUri,
-  } = useLocalSearchParams();
+  } = useLocalSearchParams<{
+    id: string;
+    title: string;
+    sourceX: string;
+    sourceY: string;
+    sourceWidth: string;
+    sourceHeight: string;
+    sourceBorderRadius: string;
+    imageUri: string;
+  }>();
 
   const flatListRef = useRef<FlatList>(null);
   const scrollY = useSharedValue(0);
@@ -80,13 +202,32 @@ const ProductDetails = () => {
     (v) => v.variationid === selectedVariant,
   );
 
+  const {
+    data: ProductListPages,
+    isLoading: isProductsPending,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useHomePageProductList({ tab_id: "" });
+
+  const flatProductList = useMemo(
+    () => ProductListPages?.pages.flatMap((p) => p.result?.data ?? []) ?? [],
+    [ProductListPages],
+  );
+
+  const handleLoadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
   const { mutate: saveToFav, isPending: isSaving } = useSaveToFavourite();
   const { mutate: removeFromFav, isPending: isRemoving } =
     useRemoveToFavourite();
-  const { mutate: addToCart } = useAddtoCart();
-  const { mutate: removeAddToCart } = useRemoveAddtoCart();
 
-  // Shared values
+  // Single hook for both add (+1) and remove (-1)
+  const { mutate: addToCart } = useAddtoCart();
+
   const bgOpacity = useSharedValue(1);
   const progress = useSharedValue(0);
   const overlayOpacity = useSharedValue(1);
@@ -107,7 +248,6 @@ const ProductDetails = () => {
   const bannersOpacity = useSharedValue(0);
   const bannersTranslateY = useSharedValue(20);
 
-  // ─── Animated styles ────────────────────────────────────────────────────────
   const backgroundStyle = useAnimatedStyle(() => ({
     flex: 1,
     backgroundColor: `rgba(255,255,255,${bgOpacity.value})`,
@@ -317,7 +457,6 @@ const ProductDetails = () => {
     animateContentEntry();
   }, []);
 
-  // Exit animation
   const startHeroExit = () => {
     progress.value = withTiming(
       0,
@@ -342,7 +481,6 @@ const ProductDetails = () => {
     carousel2Opacity.value = withTiming(0, { duration: 150 });
     carousel2TranslateY.value = withTiming(-10, { duration: 150 });
     bannersOpacity.value = withTiming(0, { duration: 150 });
-    // Last item: when done, start hero exit
     bannersTranslateY.value = withTiming(-10, { duration: 150 }, (finished) => {
       if (finished) runOnJS(startHeroExit)();
     });
@@ -360,7 +498,7 @@ const ProductDetails = () => {
   };
 
   const { data: RecommendationProduct, isLoading: isRecommendationPending } =
-    useUserRecommendationList();
+    useUserRecommendationList({ tab_id: "" });
 
   const handleFavouriteToggle = () => {
     if (product?.is_favourite) {
@@ -374,11 +512,8 @@ const ProductDetails = () => {
     }
   };
 
-  const currentImage = product?.images[activeIndex] || imageUri;
-
-  if (isLoading) return <ProductDetailsSkeleton />;
-
-  if (!product) return null;
+  const displayTitle = product?.title ?? paramTitle ?? "";
+  const currentImage = product?.images[activeIndex] ?? (imageUri as string);
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
@@ -397,13 +532,15 @@ const ProductDetails = () => {
                 <ChevronLeft color="black" size={20} />
               </TouchableOpacity>
             </Animated.View>
+
             <Animated.Text
               style={titleStyle}
               className="text-lg font-bold text-gray-900 flex-1 text-center mx-4"
               numberOfLines={1}
             >
-              {product.title}
+              {displayTitle}
             </Animated.Text>
+
             <View className="flex-row gap-4 items-center">
               <Animated.View style={[iconBtnStyle, { padding: 8 }]}>
                 <Share2 color="#3b82f6" size={20} />
@@ -411,8 +548,8 @@ const ProductDetails = () => {
               <Animated.View style={iconBtnStyle}>
                 <TouchableOpacity
                   onPress={handleFavouriteToggle}
-                  disabled={isSaving || isRemoving}
-                  className={`p-2 ${isSaving || isRemoving ? "opacity-50" : ""}`}
+                  disabled={!product || isSaving || isRemoving}
+                  className={`p-2 ${!product || isSaving || isRemoving ? "opacity-50" : ""}`}
                 >
                   <Heart
                     color="red"
@@ -441,7 +578,6 @@ const ProductDetails = () => {
           scrollEventThrottle={16}
           onScroll={scrollHandler}
         >
-          {/* Image section */}
           <View style={{ width, aspectRatio: 1 }}>
             {imageUri && (
               <Animated.View
@@ -455,60 +591,70 @@ const ProductDetails = () => {
                 />
               </Animated.View>
             )}
-            <Animated.View
-              style={[
-                { width, height: "100%", position: "absolute" },
-                galleryStyle,
-              ]}
-              pointerEvents={galleryOpacity.value === 0 ? "none" : "auto"}
-            >
-              <FlatList
-                ref={flatListRef}
-                data={product.images}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onScroll={(event: any) => {
-                  const index = Math.round(
-                    event.nativeEvent.contentOffset.x / width,
-                  );
-                  setActiveIndex(index);
-                }}
-                scrollEventThrottle={16}
-                keyExtractor={(_, index) => index.toString()}
-                renderItem={({ item }) => (
-                  <TouchableOpacity
-                    activeOpacity={0.9}
-                    onPress={() => {
-                      setViewerIndex(activeIndex);
-                      setViewerVisible(true);
-                    }}
-                    style={{ width, aspectRatio: 1 }}
-                  >
-                    <Image
-                      source={{ uri: item }}
-                      style={{ width: "100%", height: "100%" }}
-                      resizeMode="cover"
+
+            {product?.images ? (
+              <Animated.View
+                style={[
+                  { width, height: "100%", position: "absolute" },
+                  galleryStyle,
+                ]}
+                pointerEvents={galleryOpacity.value === 0 ? "none" : "auto"}
+              >
+                <FlatList
+                  ref={flatListRef}
+                  data={product.images}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  onScroll={(event: any) => {
+                    const index = Math.round(
+                      event.nativeEvent.contentOffset.x / width,
+                    );
+                    setActiveIndex(index);
+                  }}
+                  scrollEventThrottle={16}
+                  keyExtractor={(_, index) => index.toString()}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      onPress={() => {
+                        setViewerIndex(activeIndex);
+                        setViewerVisible(true);
+                      }}
+                      style={{ width, aspectRatio: 1 }}
+                    >
+                      <Image
+                        source={{ uri: item }}
+                        style={{ width: "100%", height: "100%" }}
+                        resizeMode="cover"
+                      />
+                    </TouchableOpacity>
+                  )}
+                />
+                <View className="flex-row justify-center absolute bottom-4 w-full gap-2">
+                  {product.images.map((_, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      onPress={() => {
+                        flatListRef.current?.scrollToIndex({
+                          index,
+                          animated: true,
+                        });
+                        setActiveIndex(index);
+                      }}
+                      className={`h-2 rounded-full ${activeIndex === index ? "w-8 bg-blue-300" : "w-2 bg-gray-300"}`}
                     />
-                  </TouchableOpacity>
-                )}
-              />
-              <View className="flex-row justify-center absolute bottom-4 w-full gap-2">
-                {product.images.map((_, index) => (
-                  <TouchableOpacity
-                    key={index}
-                    onPress={() => {
-                      flatListRef.current?.scrollToIndex({
-                        index,
-                        animated: true,
-                      });
-                      setActiveIndex(index);
-                    }}
-                    className={`h-2 rounded-full ${activeIndex === index ? "w-8 bg-blue-300" : "w-2 bg-gray-300"}`}
-                  />
-                ))}
-              </View>
-            </Animated.View>
+                  ))}
+                </View>
+              </Animated.View>
+            ) : (
+              imageUri && (
+                <FallbackGallery
+                  imageUri={imageUri as string}
+                  galleryStyle={galleryStyle}
+                />
+              )
+            )}
           </View>
 
           <View className="px-4 pt-4">
@@ -517,144 +663,198 @@ const ProductDetails = () => {
                 style={contentTitleStyle}
                 className="text-xl font-bold text-gray-900 leading-7"
               >
-                {product.title}
+                {displayTitle}
               </Animated.Text>
             </Animated.View>
 
             <Animated.View style={descAnimStyle}>
-              <Text className="text-gray-500 leading-5 text-sm mt-2">
-                {product.description}
-              </Text>
+              {isLoading || !product ? (
+                <DescriptionSkeleton />
+              ) : (
+                <Text className="text-gray-500 leading-5 text-sm mt-2">
+                  {product.description}
+                </Text>
+              )}
             </Animated.View>
 
             <Animated.View style={variantsAnimStyle}>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                className="py-4"
-              >
-                {product?.variations.map((item, index) => {
-                  const varId = item?.variationid;
-                  const isSelected = varId === selectedVariant;
-                  return (
-                    <TouchableOpacity
-                      onPress={() => setSelectedVariant(varId)}
-                      key={index}
-                      className={`w-36 px-4 py-2 mr-4 rounded-md border ${isSelected ? "bg-emerald-50 border-emerald-600" : "bg-white border-primary/50"}`}
-                    >
-                      <Text className="text-gray-500 text-sm font-medium mb-1">
-                        {item?.name}
-                      </Text>
-                      <View className="flex-row items-baseline">
-                        <Text className="text-sm font-bold text-black">
-                          {item?.price}
+              {isLoading || !product ? (
+                <VariantsSkeleton />
+              ) : (
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  className="py-4"
+                >
+                  {product.variations.map((item, index) => {
+                    const varId = item?.variationid;
+                    const isSelected = varId === selectedVariant;
+                    return (
+                      <TouchableOpacity
+                        onPress={() => setSelectedVariant(varId)}
+                        key={index}
+                        className={`w-36 px-4 py-2 mr-4 rounded-md border ${isSelected ? "bg-emerald-50 border-emerald-600" : "bg-white border-primary/50"}`}
+                      >
+                        <Text className="text-gray-500 text-sm font-medium mb-1">
+                          {item?.name}
                         </Text>
-                        {!isSelected && (
-                          <Text className="ml-2 text-gray-400 line-through text-xxs">
-                            Rs 200
+                        <View className="flex-row items-baseline">
+                          <Text className="text-sm font-bold text-black">
+                            {item?.price}
                           </Text>
-                        )}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+                          {!isSelected && (
+                            <Text className="ml-2 text-gray-400 line-through text-xxs">
+                              Rs 200
+                            </Text>
+                          )}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              )}
             </Animated.View>
 
+    
             <Animated.View style={carousel1AnimStyle}>
-              <ProductCarousel
-                title="More from Store"
-                showHeader={true}
-                moreOption={
-                  <TouchableOpacity className="bg-white border border-green-600 w-8 h-8 rounded-md items-center justify-center shadow-xs">
-                    <ChevronRight size={18} color="#06812F" strokeWidth={2} />
-                  </TouchableOpacity>
-                }
-                data={RecommendationProduct?.result?.data || []}
-                isLoading={isRecommendationPending}
-                gap={5}
-                onAddToCart={(id) => addToCart({ variationid: id })}
-                onRemoveAddToCart={(id) => removeAddToCart({ variationid: id })}
-              />
+              {isProductsPending ? (
+                <CarouselSkeleton showHeader />
+              ) : (
+                <ProductCarousel
+                  title="Just In"
+                  subtitle="Be the first to try them"
+                  showHeader
+                  moreOption={
+                    <TouchableOpacity className="border border-slate-200 px-3 py-1.5 rounded-full">
+                      <Text className="text-slate-500 text-xs">View All</Text>
+                    </TouchableOpacity>
+                  }
+                  data={flatProductList || []}
+                  isLoading={isProductsPending}
+                  isFetchingMore={isFetchingNextPage}
+                  onEndReached={handleLoadMore}
+                  gap={10}
+                  onAddToCart={(id) => addToCart(id, 1)}
+                  onRemoveAddToCart={(id) => addToCart(id, -1)}
+                />
+              )}
             </Animated.View>
 
+            {/* Section title */}
             <Animated.View style={sectionTitleAnimStyle}>
-              <View className="flex-row items-center justify-center my-3">
-                <Text className="text-base font-bold">♥️ Just For You ♥️</Text>
-              </View>
+              {isLoading || !product ? (
+                <Skeleton
+                  style={{
+                    width: 180,
+                    height: 18,
+                    borderRadius: 4,
+                    alignSelf: "center",
+                    marginVertical: 12,
+                  }}
+                  variant="shimmer"
+                />
+              ) : (
+                <View className="flex-row items-center justify-center my-3">
+                  <Text className="text-base font-bold">
+                    ♥️ Just For You ♥️
+                  </Text>
+                </View>
+              )}
             </Animated.View>
 
+ 
             <Animated.View style={carousel2AnimStyle}>
-              <ProductCarousel
-                showHeader={false}
-                data={RecommendationProduct?.result?.data || []}
-                isLoading={isRecommendationPending}
-                gap={5}
-                onAddToCart={(id) => addToCart({ variationid: id })}
-                onRemoveAddToCart={(id) => removeAddToCart({ variationid: id })}
-              />
+              {isLoading || !product ? (
+                <CarouselSkeleton showHeader={false} />
+              ) : (
+                <ProductCarousel
+                  showHeader={false}
+                  data={RecommendationProduct?.result?.data || []}
+                  isLoading={isRecommendationPending}
+                  gap={5}
+                  onAddToCart={(id) => addToCart(id, 1)}
+                  onRemoveAddToCart={(id) => addToCart(id, -1)}
+                />
+              )}
             </Animated.View>
 
+ 
             <Animated.View style={bannersAnimStyle}>
-              <View className="h-28 my-4">
-                <Image
-                  source={{
-                    uri: "https://www.shutterstock.com/image-vector/super-sale-promotional-banner-promo-600nw-2570295095.jpg",
-                  }}
-                  className="h-full w-full rounded-md"
-                  resizeMode="cover"
-                />
-              </View>
-              <View className="h-28 my-4">
-                <Image
-                  source={{
-                    uri: "https://www.shutterstock.com/image-vector/super-sale-promotional-banner-promo-600nw-2570295095.jpg",
-                  }}
-                  className="h-full w-full rounded-md"
-                  resizeMode="cover"
-                />
-              </View>
+              {isLoading || !product ? (
+                <>
+                  <BannerSkeleton />
+                  <BannerSkeleton />
+                </>
+              ) : (
+                <>
+                  <View className="h-28 my-4">
+                    <Image
+                      source={{
+                        uri: "https://www.shutterstock.com/image-vector/super-sale-promotional-banner-promo-600nw-2570295095.jpg",
+                      }}
+                      className="h-full w-full rounded-md"
+                      resizeMode="cover"
+                    />
+                  </View>
+                  <View className="h-28 my-4">
+                    <Image
+                      source={{
+                        uri: "https://www.shutterstock.com/image-vector/super-sale-promotional-banner-promo-600nw-2570295095.jpg",
+                      }}
+                      className="h-full w-full rounded-md"
+                      resizeMode="cover"
+                    />
+                  </View>
+                </>
+              )}
             </Animated.View>
           </View>
         </Animated.ScrollView>
+
 
         <SafeAreaView
           edges={["bottom"]}
           className="border-t border-gray-100 bg-white"
         >
-          <Animated.View
-            entering={FadeInDown.delay(300).duration(400)}
-            exiting={FadeOutDown.delay(300).duration(400)}
-            className="p-4 flex-row justify-between items-center"
-          >
-            <View>
-              <Text className="text-gray-500 text-xs font-semibold uppercase">
-                {selectedVariationData?.name || product?.title || "Default"}
-              </Text>
-              <Text className="text-base font-bold">
-                Rs. {selectedVariationData?.price || product?.price}
-              </Text>
-              <Text className="text-xs font-medium text-gray-500">
-                Inclusive of all taxes
-              </Text>
-            </View>
-            <TouchableOpacity
-              onPress={() => addToCart({ variationid: selectedVariant })}
-              className="bg-green px-4 py-3 rounded-md"
+          {isLoading || !product ? (
+            <ActionBarSkeleton />
+          ) : (
+            <Animated.View
+              entering={FadeInDown.delay(300).duration(400)}
+              exiting={FadeOutDown.delay(300).duration(400)}
+              className="p-4 flex-row justify-between items-center"
             >
-              <Text className="text-white font-semibold text-xs">
-                Add To Cart
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
+              <View>
+                <Text className="text-gray-500 text-xs font-semibold uppercase">
+                  {selectedVariationData?.name || product?.title || "Default"}
+                </Text>
+                <Text className="text-base font-bold">
+                  Rs. {selectedVariationData?.price || product?.price}
+                </Text>
+                <Text className="text-xs font-medium text-gray-500">
+                  Inclusive of all taxes
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => addToCart(selectedVariant, 1)}
+                className="bg-green px-4 py-3 rounded-md"
+              >
+                <Text className="text-white font-semibold text-xs">
+                  Add To Cart
+                </Text>
+              </TouchableOpacity>
+            </Animated.View>
+          )}
         </SafeAreaView>
 
-        <ImageViewerModal
-          visible={viewerVisible}
-          images={product.images}
-          index={viewerIndex}
-          onClose={() => setViewerVisible(false)}
-        />
+        {product && (
+          <ImageViewerModal
+            visible={viewerVisible}
+            images={product.images}
+            index={viewerIndex}
+            onClose={() => setViewerVisible(false)}
+          />
+        )}
       </Animated.View>
     </GestureHandlerRootView>
   );

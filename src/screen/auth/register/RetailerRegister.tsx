@@ -29,7 +29,7 @@ const retailerRegisterSchema = yup.object({
   address: yup.string().required("Address is required"),
   gender: yup
     .string()
-    .oneOf(["male", "female", "other"])
+    .oneOf(["Male", "Female", "Other"])
     .required("Gender is required"),
   password: yup
     .string()
@@ -63,7 +63,7 @@ const RetailerRegister = () => {
       email: "",
       phone: "",
       address: "",
-      gender: "male",
+      gender: "Male",
       password: "",
       password_confirmation: "",
       image: "",

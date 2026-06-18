@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "337435954580",
+    "project_id": "my-project-12888-1734931293849",
+    "storage_bucket": "my-project-12888-1734931293849.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:337435954580:android:f0957d7ebf4a21f0705381",
+        "android_client_info": {
+          "package_name": "com.bibash2057.gharma"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbSEfKnoS9CEiJqI-eyj5uc-3L-hX41b4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

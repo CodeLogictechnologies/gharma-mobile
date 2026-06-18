@@ -1,23 +1,24 @@
+import { useAuthStore } from "@/store/useAuth";
 import React from "react";
-import { FlatList, Text, TouchableOpacity, View } from "react-native";
+import {
+  ActivityIndicator,
+  FlatList,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
+import { useAddtoCartList } from "@/screen/cart/hooks";
+import { useGuestCartStore } from "@/screen/cart/store/GuestCartItem";
+import { ProductItem } from "../../screen/home/types";
 import ProductCard from "./ProductCard";
 import SkeletonProductCard from "./skeleton/ProductCarouselSkeleton";
 
-interface Product {
-  variationid?: string | number;
-  variation_id?: string | number;
-  productid?: string | number;
-  item_id?: string | number;
-  images: string[] | string | null;
-  title: string;
-  price: number | string;
-  oldPrice?: number | string;
-  discount?: string | number;
-}
-
 interface ProductCarouselProps {
-  data: Product[];
+  data: ProductItem[];
   isLoading?: boolean;
+  isFetchingMore?: boolean;
+  onEndReached?: () => void;
   title?: string;
   subtitle?: string;
   onMore?: () => void;
@@ -31,6 +32,8 @@ interface ProductCarouselProps {
 const ProductCarousel = ({
   data,
   isLoading = false,
+  isFetchingMore = false,
+  onEndReached,
   title,
   subtitle,
   onMore,
@@ -40,6 +43,24 @@ const ProductCarousel = ({
   onRemoveAddToCart,
   gap = 10,
 }: ProductCarouselProps) => {
+  const token = useAuthStore((s) => s.token);
+  const { data: cartList } = useAddtoCartList();
+  const guestItems = useGuestCartStore((s) => s.items);
+
+  const getQuantity = (variationid: string | number): number => {
+    if (token) {
+      const item = cartList?.data?.find(
+        (c: any) => String(c.variation_id) === String(variationid),
+      );
+      const qty = item ? Number(item.total_quantity) : 0;
+      return isNaN(qty) ? 0 : qty;
+    }
+    const item = guestItems.find(
+      (i) => String(i.variation_id) === String(variationid),
+    );
+    return item?.quantity ?? 0;
+  };
+
   const header = showHeader ? (
     <ProductCarouselHeader
       title={title}
@@ -54,12 +75,12 @@ const ProductCarousel = ({
       <View>
         {header}
         <FlatList
-          data={Array.from({ length: 4 })}
+          data={Array.from({ length: 4 }, (_, i) => i)}
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ gap }}
           renderItem={() => <SkeletonProductCard />}
-          keyExtractor={(_, i) => `skeleton-${i}`}
+          keyExtractor={(item) => `skeleton-${item}`}
         />
       </View>
     );
@@ -70,41 +91,34 @@ const ProductCarousel = ({
   return (
     <View>
       {header}
-
       <FlatList
         data={data}
-        keyExtractor={(item) =>
-          String(
-            item.variation_id ??
-              item.variationid ??
-              item.productid ??
-              item.item_id ??
-              Math.random(),
-          )
-        }
+        keyExtractor={(item, index) => {
+          const id = item?.variationid ?? item?.productid;
+          return id ? String(id) : `prod-item-${index}`;
+        }}
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ gap }}
+        onEndReached={onEndReached}
+        onEndReachedThreshold={3}
+        ListFooterComponent={
+          isFetchingMore ? (
+            <View className="w-16 items-center justify-center">
+              <ActivityIndicator size="small" color="#06812F" />
+            </View>
+          ) : null
+        }
         renderItem={({ item }) => (
           <ProductCard
-            variationid={item.variation_id ?? item.variationid ?? ""}
-            productid={item.item_id ?? item.productid ?? ""}
-            images={item.images ?? []}
-            title={item.title}
-            price={item.price}
-            oldPrice={item.oldPrice}
-            discount={item.discount}
+            item={item}
+            quantity={getQuantity(item.variationid)}
             onAddToCart={
-              onAddToCart
-                ? () => onAddToCart(item.variation_id ?? item.variationid ?? "")
-                : undefined
+              onAddToCart ? () => onAddToCart(item.variationid) : undefined
             }
             onRemoveAddToCart={
               onRemoveAddToCart
-                ? () =>
-                    onRemoveAddToCart(
-                      item.variation_id ?? item.variationid ?? "",
-                    )
+                ? () => onRemoveAddToCart(item.variationid)
                 : undefined
             }
           />
@@ -130,25 +144,22 @@ const ProductCarouselHeader = ({
   onMore,
 }: ProductCarouselHeaderProps) => {
   if (!title && !subtitle && !moreOption && !onMore) return null;
-
   return (
-    <>
-      <View className="flex-row justify-between items-center pb-4">
-        <View>
-          {title && <Text className="text-base font-bold">{title}</Text>}
-          {subtitle && <Text className="text-slate-400">{subtitle}</Text>}
-        </View>
-        {moreOption ? (
-          moreOption
-        ) : onMore ? (
-          <TouchableOpacity
-            onPress={onMore}
-            className="border border-slate-300 px-3 py-1.5 rounded-full"
-          >
-            <Text className="text-slate-600 text-xs">View All</Text>
-          </TouchableOpacity>
-        ) : null}
+    <View className="flex-row justify-between items-center pb-4">
+      <View>
+        {title && <Text className="text-base font-bold">{title}</Text>}
+        {subtitle && <Text className="text-slate-400">{subtitle}</Text>}
       </View>
-    </>
+      {moreOption ? (
+        moreOption
+      ) : onMore ? (
+        <TouchableOpacity
+          onPress={onMore}
+          className="border border-slate-300 px-3 py-1.5 rounded-full"
+        >
+          <Text className="text-slate-600 text-xs">View All</Text>
+        </TouchableOpacity>
+      ) : null}
+    </View>
   );
 };

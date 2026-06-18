@@ -1,4 +1,3 @@
-// app/address.tsx
 import { useDeliveryZone } from "@/hooks/UseDeliveryZone";
 import { useSaveUserAddress } from "@/screen/address/hooks";
 import { useAddressStore } from "@/screen/address/store";
@@ -32,6 +31,7 @@ import {
   Platform,
   Text,
   TextInput,
+  ToastAndroid,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -89,24 +89,36 @@ const getCurrentCoords = async (): Promise<{
 } | null> => {
   try {
     const { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== "granted") return null;
-    try {
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
-      return {
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      };
-    } catch {
-      const last = await Location.getLastKnownPositionAsync();
-      if (last)
-        return {
-          latitude: last.coords.latitude,
-          longitude: last.coords.longitude,
-        };
+    if (status !== "granted") {
+      if (Platform.OS === "android") {
+        ToastAndroid.show("Location permission denied", ToastAndroid.LONG);
+      }
       return null;
     }
+
+    let location = null;
+    try {
+      location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+        timeInterval: 5000,
+      });
+    } catch {
+      try {
+        location = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 10000,
+        });
+      } catch {
+        location = await Location.getLastKnownPositionAsync();
+      }
+    }
+
+    if (!location) return null;
+
+    return {
+      latitude: location.coords.latitude,
+      longitude: location.coords.longitude,
+    };
   } catch (error) {
     console.warn("Location error:", error);
     return null;
@@ -146,7 +158,9 @@ export default function AddressScreen() {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mapRef = useRef<MapRef>(null);
   const cameraRef = useRef<CameraRef>(null);
-  const { addAddress, setSkipped } = useAddressStore();
+  const { addAddress } = useAddressStore();
+
+  const prefetchedLocation = useAddressStore((s) => s.prefetchedLocation);
 
   const bannerAnim = useRef(new Animated.Value(0)).current;
 
@@ -154,8 +168,8 @@ export default function AddressScreen() {
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [region, setRegion] = useState({
-    latitude: 27.7172,
-    longitude: 85.324,
+    latitude: prefetchedLocation?.latitude ?? 27.7172,
+    longitude: prefetchedLocation?.longitude ?? 85.324,
   });
   const [pinAddress, setPinAddress] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -179,19 +193,32 @@ export default function AddressScreen() {
   }, [deliveryAvailable]);
 
   useEffect(() => {
+    if (!isMapReady) return;
+    let isMounted = true;
+
     (async () => {
-      const coords = await getCurrentCoords();
-      if (!coords) return;
-      setRegion(coords);
-      cameraRef.current?.flyTo({
-        center: [coords.longitude, coords.latitude],
-        zoom: 14,
-        duration: 1000,
-      });
+      const coords = prefetchedLocation ?? (await getCurrentCoords());
+      if (!coords || !isMounted) return;
+
+      setRegion({ latitude: coords.latitude, longitude: coords.longitude });
+
+      setTimeout(() => {
+        if (!isMounted) return;
+        cameraRef.current?.flyTo({
+          center: [coords.longitude, coords.latitude],
+          zoom: 14,
+          duration: 800,
+        });
+      }, 300);
+
       const addr = await reverseGeocode(coords.latitude, coords.longitude);
-      setPinAddress(addr);
+      if (isMounted) setPinAddress(addr);
     })();
-  }, [isMapReady]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isMapReady, prefetchedLocation]);
 
   useEffect(() => {
     const timer = setTimeout(async () => {
@@ -311,15 +338,6 @@ export default function AddressScreen() {
             </TouchableOpacity>
           )}
         </View>
-        <TouchableOpacity
-          onPress={() => {
-            setSkipped(true);
-            router.replace("/(app)/(tabs)/(home)");
-          }}
-          className="ml-3 px-3 py-2"
-        >
-          <Text className="text-sm text-gray-400 font-medium">Skip</Text>
-        </TouchableOpacity>
       </View>
 
       {isSearching && suggestions.length > 0 && (

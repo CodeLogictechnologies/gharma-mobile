@@ -1,127 +1,164 @@
-// import React, { useEffect, useState } from "react";
-// import {
-//   ActivityIndicator,
-//   Alert,
-//   Text,
-//   TouchableOpacity,
-// } from "react-native";
-// import EsewaIcon from "~/assets/images/icon/EsewaIcon";
+import React, { useCallback, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Text,
+  TouchableOpacity,
+} from "react-native";
+import EsewaIcon from "~/assets/images/icon/EsewaIcon";
+import { useEsewaDeepLink } from "../hooks/useEsewaDeepLink";
+import { bookPayment, checkPaymentStatus } from "../libs/esewa";
 
-// // Types only — no runtime import from expo-modules-core
-// import type { EsewaPaymentResult } from "~/modules/src/Esewa.types";
+interface EsewaPaymentProps {
+  amount: number;
+  transactionUuid: string;
+  customerId?: string;
+  remarks?: string;
+  onSuccess?: (data: { referenceCode: string; transactionId: string }) => void;
+  onFailure?: (error: string) => void;
+  onCancel?: () => void;
+}
 
-// const Esewa = () => {
-//   const [initialized, setInitialized] = useState(false);
-//   const [loading, setLoading] = useState(false);
-//   const [available, setAvailable] = useState(false);
-//   const [module, setModule] = useState<any>(null);
+const PRODUCT_CODE = "INTENT";
+const CALLBACK_URL = "https://your-backend.com/api/esewa/callback";
+const REDIRECT_URL = "gharma://payment/esewa"; // Use your actual scheme
 
-//   useEffect(() => {
-//     let mounted = true;
+export default function EsewaPayment({
+  amount,
+  transactionUuid,
+  customerId,
+  remarks,
+  onSuccess,
+  onFailure,
+  onCancel,
+}: EsewaPaymentProps) {
+  const [loading, setLoading] = useState(false);
+  const bookingRef = useRef<string | null>(null);
+  const correlationRef = useRef<string | null>(null);
 
-//     // Dynamically import the module AFTER app has fully initialized
-//     const loadModule = async () => {
-//       try {
-//         // Use dynamic import to defer loading
-//         const { default: EsewaModule } = await import("~/modules/src/EsewaModule");
+  // Handle return from eSewa app
+  useEsewaDeepLink(
+    useCallback(
+      async (url: string) => {
+        const bookingId = bookingRef.current;
+        const correlationId = correlationRef.current;
 
-//         if (!mounted) return;
+        if (!bookingId || !correlationId) return;
 
-//         // Check if module is available
-//         if (EsewaModule.isAvailable) {
-//           setModule(EsewaModule);
-//           setAvailable(true);
+        try {
+          const status = await checkPaymentStatus({
+            booking_id: bookingId,
+            product_code: PRODUCT_CODE,
+            correlation_id: correlationId,
+          });
 
-//           const result = await EsewaModule.init(
-//             "JB0BBQ4aD0UqIThFJwAKBgAXEUkEGQUBBAwdOgABHD4DChwUAB0R",
-//             "BhwIWQQADhIYSxILExMcAgFXFhcOBwAKBgAXEQ==",
-//             __DEV__ ? "test" : "production",
-//           );
-//           console.log(result);
-//           setInitialized(true);
-//         } else {
-//           setAvailable(false);
-//         }
-//       } catch (error) {
-//         console.error("Esewa module load failed", error);
-//         setAvailable(false);
-//       }
-//     };
-
-//     // Defer module loading to next tick to ensure RN bridge is ready
-//     setTimeout(loadModule, 100);
-
-//     return () => { mounted = false; };
-//   }, []);
-
-//   const handlePayment = async () => {
-//     if (!module || !initialized) {
-//       Alert.alert("Not Initialized", "Please wait for eSewa to initialise");
-//       return;
-//     }
-
-//     setLoading(true);
-//     try {
-//       const paymentResult: EsewaPaymentResult = await module.makePayment(
-//         "100",
-//         "Test Product",
-//         "prod123",
-//         "https://your-callback-url.com",
-//       );
-
-//       console.log("Payment success", paymentResult);
-//       Alert.alert(
-//         "Payment Successful",
-//         `Transaction ID: ${paymentResult.data?.transactionId}`,
-//       );
-//     } catch (error: any) {
-//       console.log("Payment failed", error);
-//       Alert.alert(
-//         "Payment Failed",
-//         error.code || error.message || "Unknown error",
-//       );
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   if (!available) {
-//     return (
-//       <TouchableOpacity
-//         disabled={true}
-//         className="flex-1 flex-row items-center justify-center gap-1.5 border border-gray-200 rounded-xl py-3 opacity-50"
-//       >
-//         <Text className="text-x font-semibold text-gray-400">ESEWA</Text>
-//       </TouchableOpacity>
-//     );
-//   }
-
-//   return (
-//     <TouchableOpacity
-//       onPress={handlePayment}
-//       disabled={loading || !initialized}
-//       className="flex-1 flex-row items-center justify-center gap-1.5 border border-gray-200 rounded-xl py-3"
-//     >
-//       {!initialized ? (
-//         <ActivityIndicator size="small" color="#000" />
-//       ) : (
-//         <EsewaIcon />
-//       )}
-//       <Text className="text-x font-semibold text-gray-700">ESEWA</Text>
-//     </TouchableOpacity>
-//   );
-// };
-
-// export default Esewa;
-import React from "react";
-import { Text, View } from "react-native";
-
-const Esewa = () => {
-  return (
-    <View>
-      <Text>Esewa</Text>
-    </View>
+          if (status.data.status === "SUCCESS") {
+            onSuccess?.({
+              referenceCode: status.data.reference_code,
+              transactionId: status.data.transaction_id,
+            });
+          } else if (status.data.status === "CANCELED") {
+            onCancel?.();
+          } else {
+            onFailure?.(`Payment status: ${status.data.status}`);
+          }
+        } catch (error) {
+          onFailure?.(
+            error instanceof Error ? error.message : "Status check failed",
+          );
+        } finally {
+          setLoading(false);
+          bookingRef.current = null;
+          correlationRef.current = null;
+        }
+      },
+      [onSuccess, onFailure, onCancel],
+    ),
   );
-};
 
-export default Esewa;
+  const handlePayment = async () => {
+    try {
+      setLoading(true);
+
+      const response = await bookPayment({
+        product_code: PRODUCT_CODE,
+        amount,
+        transaction_uuid: transactionUuid,
+        callback_url: CALLBACK_URL,
+        redirect_url: REDIRECT_URL,
+        properties: {
+          customer_id: customerId,
+          remarks,
+        },
+      });
+
+      if (response.code === "IP-201") {
+        bookingRef.current = response.data.booking_id;
+        correlationRef.current = response.data.correlation_id;
+
+        const supported = await Linking.canOpenURL(response.data.deeplink);
+
+        if (supported) {
+          await Linking.openURL(response.data.deeplink);
+        } else {
+          Alert.alert(
+            "eSewa Not Found",
+            "Please install the eSewa app to complete this payment.",
+            [
+              {
+                text: "Cancel",
+                style: "cancel",
+                onPress: () => {
+                  setLoading(false);
+                  bookingRef.current = null;
+                  correlationRef.current = null;
+                },
+              },
+              {
+                text: "Install",
+                onPress: () => {
+                  Linking.openURL(
+                    "https://play.google.com/store/apps/details?id=com.f1soft.esewa",
+                  );
+                  setLoading(false);
+                  bookingRef.current = null;
+                  correlationRef.current = null;
+                },
+              },
+            ],
+          );
+        }
+      } else {
+        throw new Error(response.message || "Booking failed");
+      }
+    } catch (error) {
+      setLoading(false);
+      bookingRef.current = null;
+      correlationRef.current = null;
+      Alert.alert(
+        "Payment Error",
+        error instanceof Error ? error.message : "Failed to initiate payment",
+      );
+      onFailure?.(error instanceof Error ? error.message : "Unknown error");
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      onPress={handlePayment}
+      disabled={loading}
+      activeOpacity={0.8}
+      className="flex-1 flex-row items-center justify-center gap-1.5 border border-gray-200 rounded-xl py-3" // style={{ backgroundColor: "#60BB46" }}
+    >
+      {loading ? (
+        <ActivityIndicator color="white" size="small" />
+      ) : (
+        <>
+          <EsewaIcon />
+          <Text className="text-x font-semibold text-gray-700">eSewa</Text>
+        </>
+      )}
+    </TouchableOpacity>
+  );
+}

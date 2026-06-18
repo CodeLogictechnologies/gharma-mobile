@@ -17,6 +17,7 @@ export interface ShopAddress {
   coordinates: {
     latitude: number | null;
     longitude: number | null;
+    radius: number | null;
   };
 }
 

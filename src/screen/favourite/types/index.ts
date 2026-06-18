@@ -1,3 +1,5 @@
+import { Pagination } from "@/types";
+
 export interface FavouriteItem {
   favouriteid: string;
   image: string;
@@ -11,6 +13,7 @@ export interface FavouriteAPIResponse {
   type: "success" | "error";
   message: string;
   favourite: FavouriteItem[];
+  pagination: Pagination;
 }
 
 export interface FavouriteItemBody {

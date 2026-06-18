@@ -1,15 +1,20 @@
 import { useAuthStore } from "@/store/useAuth";
 import { router } from "expo-router";
 import {
+  ArrowLeft,
   ChevronRight,
   Search,
+  ShoppingCart,
   SlidersHorizontal,
   Store,
   Truck,
 } from "lucide-react-native";
-import React from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
+  FlatList,
   Image,
+  RefreshControl,
   ScrollView,
   StatusBar,
   Text,
@@ -32,23 +37,49 @@ const Order = () => {
   ];
 
   const token = useAuthStore((s) => s.token);
-  const { data, isPending } = useOrderHistoryList();
+  const [refreshing, setRefreshing] = useState(false);
 
-  return (
-    <View className="flex-1 bg-white">
-      <StatusBar barStyle={"dark-content"} />
-      <View className="flex-row items-center px-4 py-3">
-        <Text className="text-lg font-bold ml-3 ">My Orders</Text>
-        <View className="flex-row items-center bg-gray-100 px-3 py-1 rounded-xl border border-primary/50 flex-1 mx-2">
-          <Search size={18} color="#6b7280" strokeWidth={2} />
-          <TextInput placeholder="Search..." className="ml-2 flex-1 text-sm" />
-        </View>
-        <TouchableOpacity>
-          <SlidersHorizontal size={20} color="#4b5563" strokeWidth={2} />
-        </TouchableOpacity>
-      </View>
+  const {
+    data,
+    isPending,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+    refetch,
+  } = useOrderHistoryList();
 
-      <View className=" border-b border-gray-200">
+  const flatData = useMemo(
+    () => data?.pages.flatMap((page) => page.data) ?? [],
+    [data],
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetch();
+    setRefreshing(false);
+  }, [refetch]);
+
+  const handleLoadMore = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: OrderItem; index: number }) => (
+      <OrderCard item={item} />
+    ),
+    [],
+  );
+
+  const keyExtractor = useCallback(
+    (item: OrderItem, index: number) => `${item.productname}-${index}`,
+    [],
+  );
+
+  const ListHeaderComponent = useCallback(
+    () => (
+      <View className="border-b border-gray-200">
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -70,8 +101,50 @@ const Order = () => {
           ))}
         </ScrollView>
       </View>
+    ),
+    [],
+  );
 
-      {!token ? (
+  const ListFooterComponent = useCallback(
+    () =>
+      isFetchingNextPage ? (
+        <View className="py-4 items-center">
+          <ActivityIndicator size="small" color="#F97316" />
+        </View>
+      ) : null,
+    [isFetchingNextPage],
+  );
+
+  const ListEmptyComponent = useCallback(
+    () => (
+      <View className="flex-1 items-center justify-center px-8 py-20">
+        <Store size={64} color="#d1d5db" strokeWidth={1.5} />
+        <Text className="text-lg font-bold text-gray-400 mt-4 text-center">
+          No Orders Found
+        </Text>
+      </View>
+    ),
+    [],
+  );
+
+  if (!token) {
+    return (
+      <View className="flex-1 bg-white">
+        <StatusBar barStyle={"dark-content"} />
+
+        <View className="flex-row items-center px-4 py-3">
+          <Text className="text-lg font-bold ml-3 ">My Orders</Text>
+          <View className="flex-row items-center bg-gray-100 px-3 py-1 rounded-xl border border-primary/50 flex-1 mx-2">
+            <Search size={18} color="#6b7280" strokeWidth={2} />
+            <TextInput
+              placeholder="Search..."
+              className="ml-2 flex-1 text-sm"
+            />
+          </View>
+          <TouchableOpacity>
+            <SlidersHorizontal size={20} color="#4b5563" strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
         <View className="flex-1 items-center justify-center px-8">
           <Store size={64} color="#d1d5db" strokeWidth={1.5} />
           <Text className="text-lg font-bold text-gray-400 mt-4 text-center">
@@ -87,30 +160,98 @@ const Order = () => {
             <Text className="text-white font-bold text-sm">Log In</Text>
           </TouchableOpacity>
         </View>
-      ) : isPending ? (
-        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-          {Array.from({ length: 5 }).map((_, idx) => (
-            <OrderCardSkeleton key={idx} />
-          ))}
-        </ScrollView>
-      ) : (
-        <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-          {data?.data.map((item: OrderItem, index: number) => (
-            <OrderCard key={index} item={item} />
-          ))}
-        </ScrollView>
-      )}
+      </View>
+    );
+  }
+
+  if (isPending) {
+    return (
+      <View className="flex-1 bg-white">
+        <StatusBar barStyle={"dark-content"} />
+
+        <View className="flex-row items-center px-4 py-3">
+          <Text className="text-lg font-bold ml-3 ">My Orders</Text>
+          <View className="flex-row items-center bg-gray-100 px-3 py-1 rounded-xl border border-primary/50 flex-1 mx-2">
+            <Search size={18} color="#6b7280" strokeWidth={2} />
+            <TextInput
+              placeholder="Search..."
+              className="ml-2 flex-1 text-sm"
+            />
+          </View>
+          <TouchableOpacity>
+            <SlidersHorizontal size={20} color="#4b5563" strokeWidth={2} />
+          </TouchableOpacity>
+        </View>
+        <FlatList
+          data={[]}
+          renderItem={() => null}
+          ListHeaderComponent={ListHeaderComponent}
+          ListEmptyComponent={
+            <View className="flex-1">
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <OrderCardSkeleton key={idx} />
+              ))}
+            </View>
+          }
+        />
+      </View>
+    );
+  }
+
+  return (
+    <View className="flex-1 bg-white">
+      <StatusBar barStyle={"dark-content"} />
+      <View className="bg-white p-4 flex-row justify-between items-center border-gray-200">
+        <TouchableOpacity onPress={() => {}} className="p-1">
+          <ArrowLeft size={20} />
+        </TouchableOpacity>
+        <Text className="text-lg font-bold">My Orders</Text>
+        <View className="flex-row gap-4">
+          <TouchableOpacity
+            onPress={() => {
+              router.navigate("/(app)/cartlist");
+            }}
+          >
+            <ShoppingCart size={22} />
+          </TouchableOpacity>
+          <Search size={22} />
+        </View>
+      </View>
+      <View className="flex-row items-center px-4">
+        <View className="flex-row items-center bg-gray-100 px-3 py-0 rounded-xl border border-primary/50 flex-1 mx-2">
+          <Search size={18} color="#6b7280" strokeWidth={2} />
+          <TextInput placeholder="Search..." className="ml-2 flex-1 text-sm" />
+        </View>
+        <TouchableOpacity>
+          <SlidersHorizontal size={20} color="#4b5563" strokeWidth={2} />
+        </TouchableOpacity>
+      </View>
+
+      <FlatList
+        data={flatData}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        ListHeaderComponent={ListHeaderComponent}
+        ListFooterComponent={ListFooterComponent}
+        ListEmptyComponent={ListEmptyComponent}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
+        showsVerticalScrollIndicator={false}
+      />
     </View>
   );
 };
 
-const OrderCard = ({ item }: { item: OrderItem }) => {
+const OrderCard = React.memo(({ item }: { item: OrderItem }) => {
   const isDelivered = item.order_status === "Delivered";
   const statusColor = isDelivered ? "text-green-500" : "text-orange-500";
   const actionLabel = isDelivered ? "Buy Again" : "Pay Now";
 
   return (
-    <View className=" mt-2 p-4">
+    <View className="mt-2 p-4">
       <View className="flex-row justify-between items-center mb-3">
         <View className="flex-row items-center">
           <View className="w-6 h-6 bg-red-50 items-center justify-center rounded-full mr-2">
@@ -125,7 +266,17 @@ const OrderCard = ({ item }: { item: OrderItem }) => {
       </View>
 
       {item.time && (
-        <View className="flex-row items-center bg-blue-50 p-2 rounded-md mb-3 justify-between">
+        <TouchableOpacity
+          onPress={() => {
+            router.navigate({
+              pathname: "/deliverymap",
+              params: {
+                orderId: item?.orderid,
+              },
+            });
+          }}
+          className="flex-row items-center bg-blue-50 p-2 rounded-md mb-3 justify-between"
+        >
           <View className="flex-row items-center">
             <Truck size={16} color="#3b82f6" strokeWidth={2} />
             <Text className="text-xs text-blue-600 ml-2">
@@ -133,7 +284,7 @@ const OrderCard = ({ item }: { item: OrderItem }) => {
             </Text>
           </View>
           <ChevronRight size={14} color="#3b82f6" />
-        </View>
+        </TouchableOpacity>
       )}
 
       <View className="flex-row">
@@ -174,6 +325,6 @@ const OrderCard = ({ item }: { item: OrderItem }) => {
       </View>
     </View>
   );
-};
+});
 
 export default Order;

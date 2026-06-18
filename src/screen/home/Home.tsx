@@ -1,123 +1,189 @@
 import Container from "@/components/common/Container";
 import ProductCarousel from "@/components/common/ProductCarousel";
 import { useAuthStore } from "@/store/useAuth";
+import { useNotificationStore } from "@/store/useNotificationStore";
 import { router } from "expo-router";
-import { ChevronRight, MapPin, ScanQrCode, Search } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
-import { Image, StatusBar, Text, TouchableOpacity, View } from "react-native";
+import {
+  Bell,
+  ChevronRight,
+  MapPin,
+  ScanQrCode,
+  Search,
+} from "lucide-react-native";
+import React, { useCallback, useMemo, useState } from "react";
+import {
+  Image,
+  RefreshControl,
+  StatusBar,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import Animated, {
   Extrapolation,
   interpolate,
+  interpolateColor,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
-import { useCustomerAddress } from "../address/hooks";
-import { useAddressStore, useHasAddress } from "../address/store";
 import { useActiveAddress } from "../address/store/useActiveAddress";
-import {
-  useAddtoCart,
-  useAddtoCartList,
-  useRemoveAddtoCart,
-} from "../cart/hooks";
+import { useAddtoCart, useAddtoCartList } from "../cart/hooks";
 import { useGuestCartStore } from "../cart/store/GuestCartItem";
 import { useGetUserDetails } from "../profile/hooks";
 import CategoryTabs from "./component/CategoryTabItem";
 import FloatingCart from "./component/FloatingCart";
 import HomePageBanner from "./component/HomePageBanner";
-import { home_tab } from "./const";
-import { useHomePageProductList, useUserRecommendationList } from "./hooks";
+import {
+  useHomePageProductList,
+  useHomeTabList,
+  useUserRecommendationList,
+} from "./hooks";
 
 const SEARCH_HEIGHT = 70;
 const CATEGORY_HEIGHT = 60;
+const DEFAULT_HEADER_COLOR = "#FFEDD4";
 
 export default function Home() {
   const token = useAuthStore((s) => s.token);
-
-  const skipped = useAddressStore((s) => s.skipped);
-  const hasLocalAddress = useHasAddress();
+  const { fcmToken } = useNotificationStore();
 
   const [activeIndex, setActiveIndex] = useState(0);
-  const [activeTab, setActiveTab] = useState<string>("all");
+  const [activeTab, setActiveTab] = useState<string>("");
+  const [headerColor, setHeaderColor] = useState(DEFAULT_HEADER_COLOR);
+  const [refreshing, setRefreshing] = useState(false);
+
   const address = useActiveAddress();
 
+  const { data: HomeTabList, isLoading: isTabsLoading } = useHomeTabList();
+  const tabs = HomeTabList?.result ?? [];
+
   const scrollY = useSharedValue(0);
+  const colorProgress = useSharedValue(0);
+  const fromColor = useSharedValue(DEFAULT_HEADER_COLOR);
+  const toColor = useSharedValue(DEFAULT_HEADER_COLOR);
 
-  const { data: RecommendationProduct, isLoading: isRecommendationPending } =
-    useUserRecommendationList();
+  const { data: AddToCArtList, refetch: refetchCart } = useAddtoCartList();
+  const { refetch: refetchUserDetails } = useGetUserDetails();
 
-  const { data: ProductList, isLoading: isProductsPending } =
-    useHomePageProductList(activeTab);
+  const {
+    data: recommendationData,
+    fetchNextPage: fetchNextRecommendation,
+    hasNextPage: hasNextRecommendation,
+    isFetchingNextPage: isFetchingNextRecommendation,
+    isLoading: isRecommendationLoading,
+    refetch: refetchRecommendation,
+  } = useUserRecommendationList({ tab_id: activeTab });
 
-  const { data: AddToCArtList, isLoading: isAddToCArtListPending } =
-    useAddtoCartList();
+  const flatRecommendationData = useMemo(
+    () => recommendationData?.pages.flatMap((page) => page.result.data) ?? [],
+    [recommendationData],
+  );
 
+  const {
+    data: ProductListPages,
+    isLoading: isProductsPending,
+    fetchNextPage: fetchNextProduct,
+    hasNextPage: hasNextProduct,
+    isFetchingNextPage: isFetchingNextProduct,
+    refetch: refetchProducts,
+  } = useHomePageProductList({ tab_id: activeTab });
+
+  const flatProductList = useMemo(
+    () => ProductListPages?.pages.flatMap((p) => p.result?.data ?? []) ?? [],
+    [ProductListPages],
+  );
+
+  // Single hook handles both add (+1) and remove (-1)
   const { mutate: addToCart } = useAddtoCart();
-  const { mutate: removeAddToCart } = useRemoveAddtoCart();
-
-  const { data: userDetails, isPending } = useGetUserDetails();
-
-  const { data: apiRes, isLoading: apiLoading } = useCustomerAddress();
-
-  const hasServerAddress =
-    !!token && !!apiRes?.address && apiRes.address.length > 0;
-
-  const hasAddress = !!token ? hasServerAddress : hasLocalAddress;
-
-  useEffect(() => {
-    if (apiLoading) return;
-    if (!hasAddress && !skipped) {
-      router.replace("/address");
-    }
-  }, [hasAddress, skipped, apiLoading]);
 
   const guestItemCount = useGuestCartStore((s) => s.items.length);
-
   const showCart = token
     ? (AddToCArtList?.data?.length ?? 0) > 0
     : guestItemCount > 0;
 
-  const handleCategoryChange = (index: number) => {
-    setActiveIndex(index);
-    setActiveTab(home_tab[index].id);
-  };
+  const handleCategoryChange = useCallback(
+    (index: number, tabId: string) => {
+      const raw = tabs[index]?.bg_color ?? DEFAULT_HEADER_COLOR;
+      const next =
+        !raw || raw === "#ffffff" || raw === "#fff"
+          ? DEFAULT_HEADER_COLOR
+          : raw;
+
+      fromColor.value = headerColor;
+      toColor.value = next;
+      colorProgress.value = 0;
+      colorProgress.value = withTiming(1, { duration: 400 });
+
+      setHeaderColor(next);
+      setActiveIndex(index);
+      setActiveTab(tabId);
+    },
+    [tabs, headerColor],
+  );
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    const promises: Promise<unknown>[] = [
+      refetchProducts(),
+      refetchRecommendation(),
+      refetchCart(),
+    ];
+    if (token) promises.push(refetchUserDetails());
+    await Promise.all(promises);
+    setRefreshing(false);
+  }, [
+    refetchProducts,
+    refetchRecommendation,
+    refetchCart,
+    refetchUserDetails,
+    token,
+  ]);
 
   const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollY.value = event.contentOffset.y;
+    onScroll: (e) => {
+      scrollY.value = e.contentOffset.y;
     },
   });
 
-  const stickyHeaderStyle = useAnimatedStyle(() => {
-    const translateY = interpolate(
-      scrollY.value,
-      [0, SEARCH_HEIGHT + CATEGORY_HEIGHT],
-      [0, -SEARCH_HEIGHT],
-      Extrapolation.CLAMP,
-    );
+  const stickyHeaderStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        translateY: interpolate(
+          scrollY.value,
+          [0, SEARCH_HEIGHT + CATEGORY_HEIGHT],
+          [0, -SEARCH_HEIGHT],
+          Extrapolation.CLAMP,
+        ),
+      },
+    ],
+  }));
 
-    return {
-      transform: [{ translateY }],
-    };
-  });
-
-  const deliveryInfoStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
+  const deliveryInfoStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(
       scrollY.value,
       [0, SEARCH_HEIGHT * 0.5],
       [1, 0],
       Extrapolation.CLAMP,
-    );
-    return { opacity };
-  });
+    ),
+  }));
+
+  const animatedHeaderBg = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      colorProgress.value,
+      [0, 1],
+      [fromColor.value, toColor.value],
+    ),
+  }));
 
   return (
     <View className="flex-1 bg-white">
-      <StatusBar barStyle={"dark-content"} />
+      <StatusBar barStyle="dark-content" />
 
       <Animated.View
-        className="absolute left-0 right-0 bg-[#FFEDD4] z-50"
-        style={[stickyHeaderStyle]}
+        className="absolute left-0 right-0 z-50"
+        style={[stickyHeaderStyle, animatedHeaderBg]}
       >
         <Animated.View
           style={deliveryInfoStyle}
@@ -130,11 +196,7 @@ export default function Home() {
                 DELIVER TO
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={() => {
-                router?.navigate("/myaddress");
-              }}
-            >
+            <TouchableOpacity onPress={() => router.navigate("/myaddress")}>
               <Text
                 className="text-sm font-semibold text-gray-700"
                 numberOfLines={1}
@@ -147,42 +209,33 @@ export default function Home() {
               </Text>
             </TouchableOpacity>
           </View>
-          {token ? (
-            <TouchableOpacity onPress={() => router?.navigate("/profile")}>
-              <Image
-                className="w-9 h-9 rounded-full"
-                source={{ uri: `${userDetails?.data?.image}` }}
-              />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={() => router?.navigate("/login")}>
-              <Text>Login</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity>
+            <Bell />
+          </TouchableOpacity>
         </Animated.View>
 
-        <Animated.View className="p-4 pb-1">
-          <View className="flex-row items-center gap-2">
-            <TouchableOpacity
-              onPress={() =>
-                router.navigate("/(app)/(tabs)/(home)/productsearch")
-              }
-              className="flex-1 flex-row items-center bg-white border border-orange-200 rounded-xl px-4 py-2.5"
-            >
-              <Search size={16} color="#9CA3AF" />
-              <Text className="ml-2 text-gray-400 text-sm flex-1">
-                Search products...
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity className="p-2.5 bg-white rounded-xl border border-orange-100">
-              <ScanQrCode size={22} color="#1f2937" strokeWidth={1.5} />
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
+        <View className="p-4 pb-1 flex-row items-center gap-2">
+          <TouchableOpacity
+            onPress={() => router.navigate("/productsearch")}
+            className="flex-1 flex-row items-center bg-white border border-orange-200 rounded-xl px-4 py-2.5"
+          >
+            <Search size={16} color="#9CA3AF" />
+            <Text className="ml-2 text-gray-400 text-sm flex-1">
+              Search products...
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.navigate("/(app)/scan")}
+            className="p-2.5 bg-white rounded-xl border border-orange-100"
+          >
+            <ScanQrCode size={22} color="#1f2937" strokeWidth={1.5} />
+          </TouchableOpacity>
+        </View>
 
         <View className="pt-3">
           <CategoryTabs
-            categories={home_tab}
+            tabs={tabs}
+            isLoading={isTabsLoading}
             activeIndex={activeIndex}
             onChange={handleCategoryChange}
           />
@@ -201,6 +254,13 @@ export default function Home() {
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={scrollHandler}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            progressViewOffset={SEARCH_HEIGHT + CATEGORY_HEIGHT + 70}
+          />
+        }
       >
         <HomePageBanner />
 
@@ -218,11 +278,17 @@ export default function Home() {
                   <ChevronRight size={18} color="#06812F" strokeWidth={2} />
                 </TouchableOpacity>
               }
-              data={RecommendationProduct?.result?.data || []}
-              isLoading={isRecommendationPending}
+              data={flatRecommendationData}
+              isLoading={isRecommendationLoading}
+              isFetchingMore={isFetchingNextRecommendation}
+              onEndReached={() =>
+                hasNextRecommendation &&
+                !isFetchingNextRecommendation &&
+                fetchNextRecommendation()
+              }
               gap={5}
-              onAddToCart={(id) => addToCart({ variationid: id })}
-              onRemoveAddToCart={(id) => removeAddToCart({ variationid: id })}
+              onAddToCart={(id) => addToCart(id, 1)}
+              onRemoveAddToCart={(id) => addToCart(id, -1)}
             />
           )}
 
@@ -236,11 +302,15 @@ export default function Home() {
                   <Text className="text-slate-500 text-xs">View All</Text>
                 </TouchableOpacity>
               }
-              data={ProductList?.result?.data || []}
+              data={flatProductList}
               isLoading={isProductsPending}
+              isFetchingMore={isFetchingNextProduct}
+              onEndReached={() =>
+                hasNextProduct && !isFetchingNextProduct && fetchNextProduct()
+              }
               gap={10}
-              onAddToCart={(id) => addToCart({ variationid: id })}
-              onRemoveAddToCart={(id) => removeAddToCart({ variationid: id })}
+              onAddToCart={(id) => addToCart(id, 1)}
+              onRemoveAddToCart={(id) => addToCart(id, -1)}
             />
           </View>
 
@@ -263,11 +333,15 @@ export default function Home() {
                 <ChevronRight size={18} color="#06812F" strokeWidth={2} />
               </TouchableOpacity>
             }
-            data={ProductList?.result?.data || []}
+            data={flatProductList}
             isLoading={isProductsPending}
+            isFetchingMore={isFetchingNextProduct}
+            onEndReached={() =>
+              hasNextProduct && !isFetchingNextProduct && fetchNextProduct()
+            }
             gap={5}
-            onAddToCart={(id) => addToCart({ variationid: id })}
-            onRemoveAddToCart={(id) => removeAddToCart({ variationid: id })}
+            onAddToCart={(id) => addToCart(id, 1)}
+            onRemoveAddToCart={(id) => addToCart(id, -1)}
           />
 
           <View className="h-28 my-4 rounded-md overflow-hidden">
@@ -279,6 +353,13 @@ export default function Home() {
               resizeMode="cover"
             />
           </View>
+
+          <TouchableOpacity
+            className="py-5"
+            onPress={() => router.navigate("/(driver)")}
+          >
+            <Text>Driver</Text>
+          </TouchableOpacity>
         </Container>
       </Animated.ScrollView>
 

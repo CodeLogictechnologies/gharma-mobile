@@ -5,8 +5,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 export const DELIVERY_GEOFENCE_TASK = "DELIVERY_GEOFENCE_TASK";
 
-export const DELIVERY_RADIUS_METERS = 5000; // 5 km
-
 export interface DeliveryZone {
   latitude: number;
   longitude: number;
@@ -42,7 +40,7 @@ export function isInsideDeliveryZone(
 if (!TaskManager.isTaskDefined(DELIVERY_GEOFENCE_TASK)) {
   TaskManager.defineTask(
     DELIVERY_GEOFENCE_TASK,
-    ({
+    async ({
       data,
       error,
     }: {
@@ -87,7 +85,7 @@ export function useDeliveryZone({
     .map((s) => ({
       latitude: s.coordinates.latitude!,
       longitude: s.coordinates.longitude!,
-      radius: DELIVERY_RADIUS_METERS,
+      radius: (s.coordinates?.radius ?? 0) * 1000,
     }));
 
   const deliveryAvailable =

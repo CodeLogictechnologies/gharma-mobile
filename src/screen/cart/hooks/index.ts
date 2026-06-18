@@ -2,9 +2,29 @@ import { request } from "@/api/axios";
 import { queryClient } from "@/libs/query";
 import { useAuthStore } from "@/store/useAuth";
 import { CommonAPIResponse } from "@/types";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "heroui-native";
-import { AddToCartBody, CartAPIResponse, CartItem } from "../types";
+import { useCallback, useRef } from "react";
+import {
+  AddToCartBody,
+  CartAPIResponse,
+  CartItem,
+  CouponsResponse,
+} from "../types";
+
+export const useCouponCodeList = () => {
+  const token = useAuthStore((s) => s.token);
+
+  return useQuery({
+    queryKey: ["CouponCodeList"],
+    enabled: !!token,
+    queryFn: () =>
+      request<CouponsResponse>({
+        url: `/coupon/list`,
+        method: "GET",
+      }),
+  });
+};
 
 export const useAddtoCartList = () => {
   const token = useAuthStore((s) => s.token);
@@ -20,18 +40,24 @@ export const useAddtoCartList = () => {
   });
 };
 
+const debounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const pendingVariationMap = new Map<string, string | number>();
+
 export const useAddtoCart = () => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  return useMutation({
+  const pendingDeltaMap = useRef<Map<string, number>>(new Map());
+
+  const mutation = useMutation({
     mutationFn: async (body: AddToCartBody) => {
-      const res = await request<CommonAPIResponse>({
+      return request<CommonAPIResponse>({
         url: `/addtocart`,
-        method: "POST",
+        method: "PUT",
         data: body,
       });
-      return res;
     },
+
     onMutate: async (body) => {
       await queryClient.cancelQueries({ queryKey: ["AddtoCartList"] });
       const previousData = queryClient.getQueryData<CartAPIResponse>([
@@ -49,7 +75,18 @@ export const useAddtoCart = () => {
           );
 
           if (existingItem) {
-            const newQty = Number(existingItem.total_quantity) + 1;
+            const newQty = Number(body.qty);
+
+            if (newQty <= 0) {
+              return {
+                ...old,
+                data: old.data.filter(
+                  (item: CartItem) =>
+                    String(item.variation_id) !== String(body.variationid),
+                ),
+              };
+            }
+
             const unitPrice =
               Number(existingItem.productprice) ||
               Number(existingItem.total_price) /
@@ -102,8 +139,8 @@ export const useAddtoCart = () => {
                 ...old.data,
                 {
                   variation_id: String(body.variationid),
-                  total_quantity: "1",
-                  total_price: String(unitPrice),
+                  total_quantity: String(body.qty),
+                  total_price: String(Number(body.qty) * unitPrice),
                   productprice: String(unitPrice),
                   title: productName,
                   image: productImage,
@@ -116,6 +153,7 @@ export const useAddtoCart = () => {
 
       return { previousData };
     },
+
     onError: (error: any, _, context) => {
       if (context?.previousData) {
         queryClient.setQueryData(["AddtoCartList"], context.previousData);
@@ -126,10 +164,168 @@ export const useAddtoCart = () => {
         description: error.response?.data?.message ?? error.message,
       });
     },
+
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["AddtoCartList"] });
     },
   });
+
+  const addToCart = useCallback(
+    (variationid: string | number, delta: number = 1) => {
+      const key = String(variationid);
+
+      queryClient.setQueryData(
+        ["AddtoCartList"],
+        (old: CartAPIResponse | undefined) => {
+          if (!old?.data) return old;
+
+          const item = old.data.find(
+            (i: CartItem) => String(i.variation_id) === key,
+          );
+
+          if (item) {
+            const currentQty = Number(item.total_quantity);
+            const newQty = Math.max(0, currentQty + delta);
+            const unitPrice =
+              Number(item.productprice) ||
+              Number(item.total_price) / Math.max(currentQty, 1);
+
+            if (newQty === 0) {
+              return {
+                ...old,
+                data: old.data.filter(
+                  (i: CartItem) => String(i.variation_id) !== key,
+                ),
+              };
+            }
+
+            return {
+              ...old,
+              data: old.data.map((i: CartItem) =>
+                String(i.variation_id) === key
+                  ? {
+                      ...i,
+                      total_quantity: String(newQty),
+                      total_price: String(newQty * unitPrice),
+                    }
+                  : i,
+              ),
+            };
+          }
+
+          if (delta > 0) {
+            const productLists = queryClient.getQueriesData<any>({
+              queryKey: ["HomePageProductList"],
+            });
+            const recLists = queryClient.getQueriesData<any>({
+              queryKey: ["UserRecommendationList"],
+            });
+
+            let unitPrice = 0;
+            let productName = "";
+            let productImage = "";
+
+            [...productLists, ...recLists].forEach(([_, data]) => {
+              if (data?.result?.data) {
+                const product = data.result.data.find(
+                  (p: any) => String(p.variation_id ?? p.variationid) === key,
+                );
+                if (product) {
+                  unitPrice = Number(product.price) || 0;
+                  productName = product.title || "";
+                  productImage = Array.isArray(product.images)
+                    ? product.images[0]
+                    : product.images || "";
+                }
+              }
+            });
+
+            return {
+              ...old,
+              data: [
+                ...old.data,
+                {
+                  variation_id: key,
+                  total_quantity: String(delta),
+                  total_price: String(delta * unitPrice),
+                  productprice: String(unitPrice),
+                  title: productName,
+                  image: productImage,
+                } as CartItem,
+              ],
+            };
+          }
+
+          return old;
+        },
+      );
+
+      const prev = pendingDeltaMap.current.get(key) ?? 0;
+      pendingDeltaMap.current.set(key, prev + delta);
+
+      pendingVariationMap.set(key, variationid);
+
+      if (debounceTimers.has(key)) {
+        clearTimeout(debounceTimers.get(key));
+      }
+
+      const timer = setTimeout(() => {
+        debounceTimers.delete(key);
+        pendingDeltaMap.current.delete(key);
+
+        const originalVariationid = pendingVariationMap.get(key) ?? variationid;
+        pendingVariationMap.delete(key);
+
+        const cartData = queryClient.getQueryData<CartAPIResponse>([
+          "AddtoCartList",
+        ]);
+        const item = cartData?.data?.find(
+          (i: CartItem) => String(i.variation_id) === key,
+        );
+
+        const finalQty = item ? Number(item.total_quantity) : 0;
+
+        mutation.mutate({
+          variationid: originalVariationid,
+          qty: String(finalQty),
+        });
+      }, 800);
+
+      debounceTimers.set(key, timer);
+    },
+    [mutation, queryClient],
+  );
+
+  const flushPendingCart = useCallback(() => {
+    debounceTimers.forEach((timer, key) => {
+      clearTimeout(timer);
+      debounceTimers.delete(key);
+      pendingDeltaMap.current.delete(key);
+
+      const originalVariationid = pendingVariationMap.get(key) ?? key;
+      pendingVariationMap.delete(key);
+
+      const cartData = queryClient.getQueryData<CartAPIResponse>([
+        "AddtoCartList",
+      ]);
+      const item = cartData?.data?.find(
+        (i: CartItem) => String(i.variation_id) === key,
+      );
+
+      const finalQty = item ? Number(item.total_quantity) : 0;
+
+      mutation.mutate({
+        variationid: originalVariationid,
+        qty: String(finalQty),
+      });
+    });
+  }, [mutation, queryClient]);
+
+  return {
+    ...mutation,
+    mutate: addToCart,
+    flushPendingCart,
+  };
 };
 
 export const useDeleteAddtoCart = () => {
@@ -137,11 +333,10 @@ export const useDeleteAddtoCart = () => {
 
   return useMutation({
     mutationFn: async (variationid: string | number) => {
-      const res = await request<CommonAPIResponse>({
+      return request<CommonAPIResponse>({
         url: `/cart/delete/${variationid}`,
         method: "DELETE",
       });
-      return res;
     },
     onSuccess: (res) => {
       toast.show({
@@ -157,77 +352,6 @@ export const useDeleteAddtoCart = () => {
         label: "Error",
         description: error.response?.data?.message ?? error.message,
       });
-    },
-  });
-};
-
-export const useRemoveAddtoCart = () => {
-  const { toast } = useToast();
-
-  return useMutation({
-    mutationFn: async (body: AddToCartBody) => {
-      if (!body.variationid || body.variationid === "undefined") {
-        throw new Error(`Invalid variationid: ${body.variationid}`);
-      }
-      const res = await request<CommonAPIResponse>({
-        url: `/cart/remove/${body.variationid}`,
-        method: "DELETE",
-      });
-      return res;
-    },
-    onMutate: async (body) => {
-      await queryClient.cancelQueries({ queryKey: ["AddtoCartList"] });
-      const previousData = queryClient.getQueryData<CartAPIResponse>([
-        "AddtoCartList",
-      ]);
-
-      queryClient.setQueryData(
-        ["AddtoCartList"],
-        (old: CartAPIResponse | undefined) => {
-          if (!old?.data) return old;
-
-          return {
-            ...old,
-            data: old.data
-              .map((item: CartItem) => {
-                if (String(item.variation_id) === String(body.variationid)) {
-                  const newQty = Number(item.total_quantity) - 1;
-                  const unitPrice =
-                    Number(item.productprice) ||
-                    Number(item.total_price) / Number(item.total_quantity);
-
-                  if (newQty <= 0) return null;
-
-                  return {
-                    ...item,
-                    total_quantity: String(newQty),
-                    total_price: String(unitPrice * newQty),
-                  };
-                }
-                return item;
-              })
-              .filter(Boolean) as CartItem[],
-          };
-        },
-      );
-
-      return { previousData };
-    },
-    onSuccess: (res) => {
-      //toast.show({ variant: "success", label: "Removed", description: res?.message });
-    },
-    onError: (error: any, _, context) => {
-      if (context?.previousData) {
-        queryClient.setQueryData(["AddtoCartList"], context.previousData);
-      }
-      toast.show({
-        variant: "danger",
-        label: "Error",
-        description: error.response?.data?.message ?? error.message,
-      });
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["AddtoCartList"] });
     },
   });
 };

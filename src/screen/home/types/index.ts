@@ -4,8 +4,20 @@ export interface ProductItem {
   productid: string;
   variationid: string;
   title: string;
-  price: string;
   images: string[];
+  price?: string;
+
+  discount_type: "fixed" | "percentage" | null;
+  discount_value: string | null;
+  discount_percentage: string | null;
+  original_price: string | null;
+  wholesaler_price?: WholesalerPrice[];
+}
+
+export interface WholesalerPrice {
+  price: string;
+  min_qty: number;
+  max_qty: number;
 }
 
 export interface ProductListResult {
@@ -18,8 +30,6 @@ export type HomePageProductResponse = {
   message: string;
   result: ProductListResult;
 };
-
-
 
 export interface RecommendationData {
   images: string[] | null;
@@ -48,10 +58,28 @@ export interface OrderItem {
   variation_id: string;
   quantity: number;
   price: number;
+
+  original_price_per_unit: number;
+  discount_type: "fixed" | "percentage" | null;
+  discount_value_per_unit: number | null;
+  discount_percentage_per_unit: number | null;
 }
 
 export interface OrderRequestBody {
   total: number;
   addressid: string;
   items: OrderItem[];
+}
+
+export interface HomeTabsItem {
+  id: string;
+  tab_name: string;
+  icon_name: string;
+  bg_color: string;
+}
+
+export interface HomeTabsResponse {
+  type: "success" | "error" | string;
+  message: string;
+  result: HomeTabsItem[];
 }

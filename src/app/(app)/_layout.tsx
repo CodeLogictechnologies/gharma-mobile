@@ -45,6 +45,15 @@ const AppLayout = () => {
           headerShown: false,
         }}
       />
+      <Stack.Screen name="productsearch" />
+      <Stack.Screen name="favourite" />
+      <Stack.Screen name="cartlist" />
+      <Stack.Screen name="morepage" />
+      <Stack.Screen name="subcategory" />
+      <Stack.Screen name="deliverymap" />
+      <Stack.Screen name="scan" />
+      <Stack.Screen name="brand" />
+      <Stack.Screen name="refundreturnpolicy" />
     </Stack>
   );
 };

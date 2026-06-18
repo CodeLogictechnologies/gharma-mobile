@@ -1,4 +1,3 @@
-// screen/cart/syncGuestCart.ts
 import { request } from "@/api/axios";
 import { queryClient } from "@/libs/query";
 import { CommonAPIResponse } from "@/types";
@@ -8,8 +7,6 @@ export const syncAndClearGuestCart = async (): Promise<void> => {
   const { items, clearCart } = useGuestCartStore.getState();
 
   const guestItems = [...items];
-
-  clearCart();
 
   if (guestItems.length === 0) return;
 
@@ -30,9 +27,12 @@ export const syncAndClearGuestCart = async (): Promise<void> => {
 
   try {
     await Promise.all(requests);
+
+    clearCart();
+
     await queryClient.invalidateQueries({ queryKey: ["AddtoCartList"] });
-    console.log(`[cart] ${guestItems.length} guest item(s) synced to backend`);
+    console.log(`${guestItems.length} guest item(s) synced to backend`);
   } catch (err) {
-    console.warn("[cart] Guest cart sync failed (non-fatal):", err);
+    console.warn("Guest cart sync failed (non-fatal):", err);
   }
 };

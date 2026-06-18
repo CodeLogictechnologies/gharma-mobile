@@ -10,10 +10,6 @@ const _layout = () => {
       }}
     >
       <Stack.Screen name="index" options={{ title: "Home" }} />
-      <Stack.Screen name="productsearch" />
-      <Stack.Screen name="favouritelist" />
-      <Stack.Screen name="cartlist" />
-      <Stack.Screen name="morepage" />
     </Stack>
   );
 };
