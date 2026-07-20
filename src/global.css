@@ -17,17 +17,37 @@
 
   /* --default-font-family: SF-Pro; */
 
-  --color-primary: #369fc6;
+  /* Brand */
+  --color-primary: #d7a11b;
+  --color-primary-dark: #b5860f;
+  --color-primary-tint: #fdf6e4;
   --color-secondary: #f0f1e1;
   --color-yellow: #d7a11b;
+
+  /* Semantic */
+  --color-success: #06812f;
   --color-green: #06812f;
+  --color-error: #dc2626;
+  --color-warning: #ea580c;
   --color-gray: #737373;
+
+  /* Neutral surfaces & borders */
+  --color-surface: #ffffff;
+  --color-surface-muted: #f8fafc;
+  --color-line: #e2e8f0;
 }
 
 @layer base {
   Text {
     /* font-family: SF-Pro; */
   }
+}
+
+/* Brand heroui-native controls (Checkbox, Button, focus rings) gold instead
+   of the library's default blue accent */
+:root {
+  --accent: #d7a11b;
+  --accent-foreground: #ffffff;
 }
 
 @source "../node_modules/heroui-native/lib";

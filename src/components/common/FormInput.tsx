@@ -1,14 +1,20 @@
-// components/FormInput.tsx
-import React from "react";
+import { Eye, EyeOff } from "lucide-react-native";
+import React, { useState } from "react";
 import { Control, Controller, FieldPath, FieldValues } from "react-hook-form";
-import { Text, TextInput, TextInputProps, View } from "react-native";
+import {
+  Text,
+  TextInput,
+  TextInputProps,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 interface FormInputProps<T extends FieldValues> extends TextInputProps {
   control: Control<T>;
   name: FieldPath<T>;
   label: string;
   errorMessage?: string;
-  prefix?: string; // e.g. "+977" for phone fields
+  prefix?: string;
 }
 
 const FormInput = <T extends FieldValues>({
@@ -17,8 +23,11 @@ const FormInput = <T extends FieldValues>({
   label,
   errorMessage,
   prefix,
+  secureTextEntry,
   ...textInputProps
 }: FormInputProps<T>) => {
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+
   return (
     <View className="mb-2">
       <Text className="text-sm font-semibold text-gray-700 mb-1.5">
@@ -40,10 +49,23 @@ const FormInput = <T extends FieldValues>({
               onBlur={onBlur}
               onChangeText={onChange}
               value={value}
+              secureTextEntry={secureTextEntry ? !isPasswordVisible : false}
               {...textInputProps}
             />
           )}
         />
+        {secureTextEntry && (
+          <TouchableOpacity
+            onPress={() => setIsPasswordVisible((prev) => !prev)}
+            activeOpacity={0.7}
+          >
+            {isPasswordVisible ? (
+              <Eye size={17} color="#6b7280" />
+            ) : (
+              <EyeOff size={17} color="#6b7280" />
+            )}
+          </TouchableOpacity>
+        )}
       </View>
 
       {errorMessage && (

@@ -1,4 +1,4 @@
-import { ProductItem } from "@/screen/home/types";
+import { ProductItem } from "@/types/product";
 
 
 export interface PriceRange {

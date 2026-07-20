@@ -13,7 +13,6 @@ const DynamicIcon = ({
   size = 20,
   strokeWidth = 2,
 }: DynamicIconProps) => {
-  // Lucide names are PascalCase: "shopping-bag" → "ShoppingBag"
   const pascalName = name
     .split("-")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
@@ -21,7 +20,7 @@ const DynamicIcon = ({
 
   const LucideIcon = icons[pascalName];
 
-  if (!LucideIcon) return null; // graceful fallback
+  if (!LucideIcon) return null;
 
   return <LucideIcon color={color} size={size} strokeWidth={strokeWidth} />;
 };

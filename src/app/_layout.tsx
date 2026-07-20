@@ -1,21 +1,16 @@
 import "@/global.css";
-import { queryClient } from "@/libs/query";
+import NetworkButton from "@/components/common/NetworkButton";
+import { useCustomerAddress } from "@/features/address/hooks";
+import { useAddressStore, useHasAddress } from "@/features/address/store";
 import { useFCMTokenManager } from "@/notifications/useNotificationToken";
 import { useUpdateAndNotification } from "@/notifications/useUpdateAndNotification";
-import { useCustomerAddress } from "@/screen/address/hooks";
-import { useAddressStore, useHasAddress } from "@/screen/address/store";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import { QueryClientProvider } from "@tanstack/react-query";
+import AppProviders from "@/providers/AppProviders";
+import { useAuthStore } from "@/store/useAuth";
 import * as Location from "expo-location";
 import { router, Slot, SplashScreen, usePathname } from "expo-router";
-import { HeroUINativeProvider } from "heroui-native";
-import { ChartNetwork } from "lucide-react-native";
 import { useEffect, useRef, useState } from "react";
-import { Pressable, StatusBar } from "react-native";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { startNetworkLogging } from "react-native-network-logger";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { useAuthStore } from "../store/useAuth";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 startNetworkLogging();
 SplashScreen.preventAutoHideAsync();
@@ -75,26 +70,13 @@ export default function RootLayout() {
   if (!isHydrated) return null;
 
   return (
-    <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#fff" }}>
-          <BottomSheetModalProvider>
-            <HeroUINativeProvider config={{ toast: true }}>
-              <StatusBar
-                barStyle="dark-content"
-                backgroundColor="transparent"
-                translucent={true}
-              />
-              <AppNavigator
-                onReady={() => setNavigationReady(true)}
-                onRedirectHandled={() => setRedirectHandled(true)}
-              />
-              <NetworkButton />
-            </HeroUINativeProvider>
-          </BottomSheetModalProvider>
-        </GestureHandlerRootView>
-      </QueryClientProvider>
-    </SafeAreaProvider>
+    <AppProviders>
+      <AppNavigator
+        onReady={() => setNavigationReady(true)}
+        onRedirectHandled={() => setRedirectHandled(true)}
+      />
+      <NetworkButton />
+    </AppProviders>
   );
 }
 
@@ -174,21 +156,3 @@ function AppNavigator({ onReady, onRedirectHandled }: AppNavigatorProps) {
     </SafeAreaView>
   );
 }
-
-const NetworkButton = () => (
-  <Pressable
-    style={{
-      position: "absolute",
-      bottom: 80,
-      right: 20,
-      backgroundColor: "rgba(52, 52, 52, 0.6)",
-      padding: 12,
-      borderRadius: 50,
-      elevation: 50,
-      zIndex: 9999,
-    }}
-    onPress={() => router.navigate("/network")}
-  >
-    <ChartNetwork width={24} height={24} color="#fff" />
-  </Pressable>
-);

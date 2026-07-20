@@ -1,4 +1,4 @@
-import VerifyOTP from "@/screen/auth/forgotpassword/VerifyOTP";
+import VerifyOTP from "@/features/auth/forgotpassword/VerifyOTP";
 import React from "react";
 
 const verifyotp = () => {

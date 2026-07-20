@@ -1,4 +1,4 @@
-import Order from "@/screen/order/Order";
+import Order from "@/features/order/Order";
 import React from "react";
 
 const order = () => {

@@ -12,7 +12,7 @@
       "bundleIdentifier": "com.bibash2057.gharma",
       "googleServicesFile": "./configs/GoogleService-Info.plist",
       "infoPlist": {
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": ["remote-notification", "location"]
       }
     },
     "android": {
@@ -75,6 +75,14 @@
           ]
         }
       ],
+      [
+        "expo-file-system",
+        {
+          "supportsOpeningDocumentsInPlace": true,
+          "enableFileSharing": true
+        }
+      ],
+
       "expo-router",
       [
         "expo-splash-screen",
@@ -115,9 +123,24 @@
             "stylingPrinciples": false
           }
         }
+      ],
+      [
+        "expo-sharing",
+        {
+          "ios": {
+            "enabled": true,
+            "activationRule": {
+              "supportsImageWithMaxCount": 5
+            }
+          },
+          "android": {
+            "enabled": true,
+            "singleShareMimeTypes": ["image/*"],
+            "multipleShareMimeTypes": ["image/*"]
+          }
+        }
       ]
     ],
-
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": false,

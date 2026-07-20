@@ -54,6 +54,7 @@ const AppLayout = () => {
       <Stack.Screen name="scan" />
       <Stack.Screen name="brand" />
       <Stack.Screen name="refundreturnpolicy" />
+      <Stack.Screen name="recentlyviewed" />
     </Stack>
   );
 };

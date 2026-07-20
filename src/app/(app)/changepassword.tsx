@@ -1,4 +1,4 @@
-import ChangePassword from "@/screen/auth/changepassword/ChangePassword";
+import ChangePassword from "@/features/auth/changepassword/ChangePassword";
 import React from "react";
 
 const changepassowrd = () => {

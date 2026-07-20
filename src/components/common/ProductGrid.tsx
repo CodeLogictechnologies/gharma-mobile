@@ -1,5 +1,6 @@
-import { useAuthStore } from "@/store/useAuth";
-import React from "react";
+import { useCartQuantity } from "@/hooks/useCartQuantity";
+import { useStableCallback } from "@/hooks/useStableCallback";
+import React, { memo, useCallback, useMemo } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -8,11 +9,10 @@ import {
   type ListRenderItem,
 } from "react-native";
 
-import { useAddtoCartList } from "@/screen/cart/hooks";
-import { useGuestCartStore } from "@/screen/cart/store/GuestCartItem";
-import { ProductItem } from "../../screen/home/types"; // adjust path as needed
+import { ProductItem } from "@/types/product";
 import ProductCard from "./ProductCard";
 import SkeletonProductCard from "./skeleton/ProductCarouselSkeleton";
+import { ShoppingCart } from "lucide-react-native";
 
 interface ProductGridProps {
   products: ProductItem[];
@@ -32,54 +32,17 @@ interface ProductGridProps {
 
 const COLUMN_GAP = 12;
 
-const ProductGrid = ({
-  products,
-  numColumns = 2,
-  cardWidth,
-  onAddToCart,
-  onRemoveAddToCart,
-  isLoading = false,
-  emptyMessage = "No products found.",
-  onEndReached,
-  onEndReachedThreshold = 0.5,
-  ListHeaderComponent,
-  ListFooterComponent,
-  refreshing = false,
-  onRefresh,
-}: ProductGridProps) => {
-  const token = useAuthStore((s) => s.token);
-  const { data: cartList } = useAddtoCartList();
-  const guestItems = useGuestCartStore((s) => s.items);
+interface GridCellProps {
+  item: ProductItem;
+  isLastInRow: boolean;
+  cardWidth?: number;
+  quantity: number;
+  onAdd?: (variationId: string | number) => void;
+  onRemove?: (variationId: string | number) => void;
+}
 
-  const getQuantity = (variationid: string | number): number => {
-    if (token) {
-      const item = cartList?.data?.find(
-        (c: any) => String(c.variation_id) === String(variationid),
-      );
-      const qty = item ? Number(item.total_quantity) : 0;
-      return isNaN(qty) ? 0 : qty;
-    }
-    const item = guestItems.find(
-      (i) => String(i.variation_id) === String(variationid),
-    );
-    return item?.quantity ?? 0;
-  };
-
-  const skeletonData: ProductItem[] = isLoading
-    ? Array.from({ length: numColumns * 3 }, (_, i) => ({
-        variationid: `skeleton-${i}`,
-        productid: `skeleton-${i}`,
-        images: [],
-        title: "",
-        variations: [],
-        wholesaler_price: [],
-      }))
-    : [];
-
-  const data = isLoading ? skeletonData : products;
-
-  const renderItem: ListRenderItem<ProductItem> = ({ item, index }) => {
-    const isLastInRow = (index + 1) % numColumns === 0;
+const GridCell = memo(
+  ({ item, isLastInRow, cardWidth, quantity, onAdd, onRemove }: GridCellProps) => {
     const isSkeleton = String(item.variationid).startsWith("skeleton-");
 
     return (
@@ -97,27 +60,94 @@ const ProductGrid = ({
             item={item}
             isGrid
             cardWidth={cardWidth}
-            quantity={getQuantity(item.variationid)}
-            onAddToCart={
-              onAddToCart ? () => onAddToCart(item.variationid) : undefined
-            }
+            quantity={quantity}
+            onAddToCart={onAdd ? () => onAdd(item.variationid) : undefined}
             onRemoveAddToCart={
-              onRemoveAddToCart
-                ? () => onRemoveAddToCart(item.variationid)
-                : undefined
+              onRemove ? () => onRemove(item.variationid) : undefined
             }
           />
         )}
       </View>
     );
-  };
+  },
+);
+GridCell.displayName = "GridCell";
+
+const ProductGrid = ({
+  products,
+  numColumns = 2,
+  cardWidth,
+  onAddToCart,
+  onRemoveAddToCart,
+  isLoading = false,
+  emptyMessage = "No products found.",
+  onEndReached,
+  onEndReachedThreshold = 0.5,
+  ListHeaderComponent,
+  ListFooterComponent,
+  refreshing = false,
+  onRefresh,
+}: ProductGridProps) => {
+  const getQuantity = useCartQuantity();
+  const stableAdd = useStableCallback(onAddToCart);
+  const stableRemove = useStableCallback(onRemoveAddToCart);
+
+  const skeletonData: ProductItem[] = useMemo(
+    () =>
+      isLoading
+        ? Array.from({ length: numColumns * 3 }, (_, i) => ({
+            variationid: `skeleton-${i}`,
+            productid: `skeleton-${i}`,
+            title: "",
+            images: [],
+            variations: [],
+            wholesaler_price: [],
+            discount_type: null,
+            discount_value: null,
+            discount_percentage: null,
+            original_price: null,
+          }))
+        : [],
+    [isLoading, numColumns],
+  );
+
+  const data = isLoading ? skeletonData : products;
+
+  const renderItem: ListRenderItem<ProductItem> = useCallback(
+    ({ item, index }) => (
+      <GridCell
+        item={item}
+        isLastInRow={(index + 1) % numColumns === 0}
+        cardWidth={cardWidth}
+        quantity={getQuantity(item.variationid)}
+        onAdd={onAddToCart ? stableAdd : undefined}
+        onRemove={onRemoveAddToCart ? stableRemove : undefined}
+      />
+    ),
+    [
+      numColumns,
+      cardWidth,
+      getQuantity,
+      onAddToCart,
+      onRemoveAddToCart,
+      stableAdd,
+      stableRemove,
+    ],
+  );
 
   const EmptyComponent = () => {
     if (isLoading) return null;
     return (
       <View className="flex-1 items-center justify-center py-16">
-        <Text className="text-slate-400 text-sm font-medium">
+        <View className="w-16 h-16 rounded-full bg-slate-100 items-center justify-center mb-3">
+          {/* <Text className="text-2xl">🛒</Text> */}
+          <ShoppingCart />
+        </View>
+        <Text className="text-slate-600 text-sm font-inter-semibold">
           {emptyMessage}
+        </Text>
+        <Text className="text-slate-400 text-xs mt-1">
+          Try a different search or category
         </Text>
       </View>
     );
@@ -127,7 +157,7 @@ const ProductGrid = ({
     if (!isLoading || products.length === 0) return ListFooterComponent ?? null;
     return (
       <View className="py-4 items-center">
-        <ActivityIndicator size="small" color="#06812f" />
+        <ActivityIndicator size="small" color="#d7a11b" />
       </View>
     );
   };
@@ -149,6 +179,9 @@ const ProductGrid = ({
       ListEmptyComponent={<EmptyComponent />}
       refreshing={refreshing}
       onRefresh={onRefresh}
+      initialNumToRender={8}
+      maxToRenderPerBatch={8}
+      windowSize={7}
     />
   );
 };

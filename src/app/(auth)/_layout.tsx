@@ -17,11 +17,10 @@ const AuthLayout = () => {
       }}
     >
       <Stack.Screen name="login" />
+      <Stack.Screen name="register" />
       <Stack.Screen name="verifyotp" />
       <Stack.Screen name="resetpassword" />
       <Stack.Screen name="forgotpassword" />
-      <Stack.Screen name="registerretailer" />
-      <Stack.Screen name="wholesalerregister" />
     </Stack>
   );
 };

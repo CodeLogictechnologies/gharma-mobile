@@ -1,13 +1,14 @@
+import { useGuestCartStore } from "@/features/cart/store/GuestCartItem";
 import {
   getPriceRange,
   isWholesalerItem,
   resolvePrice,
 } from "@/libs/pricehelper";
-import { useGuestCartStore } from "@/screen/cart/store/GuestCartItem";
 import { useAuthStore } from "@/store/useAuth";
+import { type ProductItem } from "@/types/product";
 import { router } from "expo-router";
 import { Minus, Plus } from "lucide-react-native";
-import React, { useEffect, useRef, useState } from "react";
+import React, { memo, useEffect, useRef, useState } from "react";
 import {
   Keyboard,
   View as RNView,
@@ -17,7 +18,6 @@ import {
   View,
 } from "react-native";
 import Animated, { FadeIn, FadeOut, ZoomIn } from "react-native-reanimated";
-import { type ProductItem } from "../../screen/home/types";
 
 interface ProductCardProps {
   item: ProductItem;
@@ -46,10 +46,11 @@ const ProductCard = ({
   const token = useAuthStore((s) => s.token);
   const { addItem, removeItem, updateQuantity } = useGuestCartStore();
 
-  const guestQuantity = useGuestCartStore(
-    (s) =>
-      s.items.find((i) => String(i.variation_id) === String(variationid))
-        ?.quantity ?? 0,
+  const guestQuantity = useGuestCartStore((s) =>
+    variationid === undefined || variationid === null || variationid === ""
+      ? 0
+      : (s.items.find((i) => String(i.variation_id) === String(variationid))
+          ?.quantity ?? 0),
   );
 
   const quantity = Number(propQuantity ?? guestQuantity);
@@ -90,24 +91,20 @@ const ProductCard = ({
   };
 
   const handleInputChange = (text: string) => {
-    // Allow empty string while typing so user can clear and retype
     setInputValue(text.replace(/[^0-9]/g, ""));
   };
 
   const handleInputSubmit = () => {
     const raw = inputValue.trim();
 
-    // Treat empty input as 0 (remove)
     const newQuantity = raw === "" ? 0 : parseInt(raw, 10);
 
     if (isNaN(newQuantity) || newQuantity < 0) {
-      // Invalid — restore current quantity, do nothing
       setInputValue(String(quantity));
       return;
     }
 
     if (newQuantity === quantity) {
-      // No change
       setInputValue(String(quantity));
       Keyboard.dismiss();
       return;
@@ -148,7 +145,7 @@ const ProductCard = ({
           sourceY: pageY,
           sourceWidth: width,
           sourceHeight: height,
-          sourceBorderRadius: 6,
+          sourceBorderRadius: 12,
         },
       });
     });
@@ -194,24 +191,24 @@ const ProductCard = ({
     <View style={{ width: CARD_WIDTH }} className="bg-white rounded-2xl">
       <View
         style={{ width: CARD_WIDTH, height: IMAGE_HEIGHT }}
-        className="relative bg-slate-50 rounded-md"
+        className="relative bg-slate-50 rounded-xl"
       >
         {firstImage ? (
           <TouchableOpacity
-            activeOpacity={1}
+            activeOpacity={0.85}
             onPress={handlePress}
             ref={imageRef}
             style={{ width: CARD_WIDTH, height: IMAGE_HEIGHT }}
           >
             <Animated.Image
               source={{ uri: firstImage }}
-              style={{ width: "100%", height: "100%", borderRadius: 6 }}
+              style={{ width: "100%", height: "100%", borderRadius: 12 }}
               resizeMode="cover"
             />
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
-            activeOpacity={1}
+            activeOpacity={0.85}
             onPress={handlePress}
             style={{ width: CARD_WIDTH, height: IMAGE_HEIGHT }}
             className="items-center justify-center"
@@ -234,21 +231,28 @@ const ProductCard = ({
 
         <Animated.View className="absolute -bottom-3 right-1 z-10">
           {quantity === 0 ? (
-            <Animated.View entering={ZoomIn} exiting={FadeOut}>
+            <Animated.View
+              entering={ZoomIn.duration(200)}
+              exiting={FadeOut.duration(150)}
+            >
               <TouchableOpacity
                 onPress={() => handleQuantity("add")}
-                className="bg-white border border-green w-7 h-7 rounded-md items-center justify-center shadow-md"
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                className="bg-white border border-primary w-8 h-8 rounded-lg items-center justify-center shadow-md"
               >
-                <Plus size={14} color="#06812f" strokeWidth={3} />
+                <Plus size={16} color="#d7a11b" strokeWidth={3} />
               </TouchableOpacity>
             </Animated.View>
           ) : (
             <Animated.View
               entering={FadeIn.duration(200)}
-              className="flex-row items-center bg-green rounded-md h-7 px-1.5 shadow-md"
+              className="flex-row items-center bg-primary rounded-lg h-8 px-1.5 shadow-md"
             >
               <TouchableOpacity
                 onPress={() => handleQuantity("remove")}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                 className="p-1"
               >
                 <Minus size={14} color="white" strokeWidth={3} />
@@ -277,6 +281,8 @@ const ProductCard = ({
 
               <TouchableOpacity
                 onPress={() => handleQuantity("add")}
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
                 className="p-1"
               >
                 <Plus size={14} color="white" strokeWidth={3} />
@@ -286,11 +292,17 @@ const ProductCard = ({
         </Animated.View>
       </View>
 
-      <TouchableOpacity onPress={handlePress} className="px-1 mt-4">
+      <TouchableOpacity
+        onPress={handlePress}
+        activeOpacity={0.7}
+        className="px-1 mt-4"
+      >
         {!wholesaler && item?.discount_type === "percentage" && (
-          <Text className="text-green text-xs font-bold uppercase">
-            {`${parseInt(String(item?.discount_percentage)) || 0}% OFF`}
-          </Text>
+          <View className="self-start bg-primary-tint rounded px-1 py-px">
+            <Text className="text-primary-dark text-[10px] font-inter-bold uppercase">
+              {`${parseInt(String(item?.discount_percentage)) || 0}% OFF`}
+            </Text>
+          </View>
         )}
 
         {renderPrice()}
@@ -310,4 +322,4 @@ const ProductCard = ({
   );
 };
 
-export default ProductCard;
+export default memo(ProductCard);

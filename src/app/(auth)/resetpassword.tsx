@@ -1,4 +1,4 @@
-import ResetPassword from "@/screen/auth/forgotpassword/ResetPassword";
+import ResetPassword from "@/features/auth/forgotpassword/ResetPassword";
 import React from "react";
 
 const resetpassword = () => {

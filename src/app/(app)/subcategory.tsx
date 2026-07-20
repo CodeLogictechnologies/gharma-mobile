@@ -1,4 +1,4 @@
-import SubCategories from "@/screen/subcategory/SubCategories";
+import SubCategories from "@/features/subcategory/SubCategories";
 import React from "react";
 
 const subcategory = () => {

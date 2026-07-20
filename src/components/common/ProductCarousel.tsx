@@ -1,16 +1,16 @@
-import { useAuthStore } from "@/store/useAuth";
-import React from "react";
+import { useCartQuantity } from "@/hooks/useCartQuantity";
+import { useStableCallback } from "@/hooks/useStableCallback";
+import React, { memo, useCallback } from "react";
 import {
   ActivityIndicator,
   FlatList,
   Text,
   TouchableOpacity,
   View,
+  type ListRenderItem,
 } from "react-native";
 
-import { useAddtoCartList } from "@/screen/cart/hooks";
-import { useGuestCartStore } from "@/screen/cart/store/GuestCartItem";
-import { ProductItem } from "../../screen/home/types";
+import { ProductItem } from "@/types/product";
 import ProductCard from "./ProductCard";
 import SkeletonProductCard from "./skeleton/ProductCarouselSkeleton";
 
@@ -29,6 +29,25 @@ interface ProductCarouselProps {
   gap?: number;
 }
 
+interface CarouselCellProps {
+  item: ProductItem;
+  quantity: number;
+  onAdd?: (variationId: string | number) => void;
+  onRemove?: (variationId: string | number) => void;
+}
+
+const CarouselCell = memo(
+  ({ item, quantity, onAdd, onRemove }: CarouselCellProps) => (
+    <ProductCard
+      item={item}
+      quantity={quantity}
+      onAddToCart={onAdd ? () => onAdd(item.variationid) : undefined}
+      onRemoveAddToCart={onRemove ? () => onRemove(item.variationid) : undefined}
+    />
+  ),
+);
+CarouselCell.displayName = "CarouselCell";
+
 const ProductCarousel = ({
   data,
   isLoading = false,
@@ -43,23 +62,21 @@ const ProductCarousel = ({
   onRemoveAddToCart,
   gap = 10,
 }: ProductCarouselProps) => {
-  const token = useAuthStore((s) => s.token);
-  const { data: cartList } = useAddtoCartList();
-  const guestItems = useGuestCartStore((s) => s.items);
+  const getQuantity = useCartQuantity();
+  const stableAdd = useStableCallback(onAddToCart);
+  const stableRemove = useStableCallback(onRemoveAddToCart);
 
-  const getQuantity = (variationid: string | number): number => {
-    if (token) {
-      const item = cartList?.data?.find(
-        (c: any) => String(c.variation_id) === String(variationid),
-      );
-      const qty = item ? Number(item.total_quantity) : 0;
-      return isNaN(qty) ? 0 : qty;
-    }
-    const item = guestItems.find(
-      (i) => String(i.variation_id) === String(variationid),
-    );
-    return item?.quantity ?? 0;
-  };
+  const renderItem: ListRenderItem<ProductItem> = useCallback(
+    ({ item }) => (
+      <CarouselCell
+        item={item}
+        quantity={getQuantity(item.variationid)}
+        onAdd={onAddToCart ? stableAdd : undefined}
+        onRemove={onRemoveAddToCart ? stableRemove : undefined}
+      />
+    ),
+    [getQuantity, onAddToCart, onRemoveAddToCart, stableAdd, stableRemove],
+  );
 
   const header = showHeader ? (
     <ProductCarouselHeader
@@ -105,24 +122,14 @@ const ProductCarousel = ({
         ListFooterComponent={
           isFetchingMore ? (
             <View className="w-16 items-center justify-center">
-              <ActivityIndicator size="small" color="#06812F" />
+              <ActivityIndicator size="small" color="#d7a11b" />
             </View>
           ) : null
         }
-        renderItem={({ item }) => (
-          <ProductCard
-            item={item}
-            quantity={getQuantity(item.variationid)}
-            onAddToCart={
-              onAddToCart ? () => onAddToCart(item.variationid) : undefined
-            }
-            onRemoveAddToCart={
-              onRemoveAddToCart
-                ? () => onRemoveAddToCart(item.variationid)
-                : undefined
-            }
-          />
-        )}
+        renderItem={renderItem}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        windowSize={5}
       />
     </View>
   );
@@ -147,17 +154,27 @@ const ProductCarouselHeader = ({
   return (
     <View className="flex-row justify-between items-center pb-4">
       <View>
-        {title && <Text className="text-base font-bold">{title}</Text>}
-        {subtitle && <Text className="text-slate-400">{subtitle}</Text>}
+        {title && (
+          <Text className="text-base font-inter-bold text-slate-900">
+            {title}
+          </Text>
+        )}
+        {subtitle && (
+          <Text className="text-xs text-slate-400 mt-0.5">{subtitle}</Text>
+        )}
       </View>
       {moreOption ? (
         moreOption
       ) : onMore ? (
         <TouchableOpacity
           onPress={onMore}
-          className="border border-slate-300 px-3 py-1.5 rounded-full"
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          className="border border-slate-200 px-3 py-1.5 rounded-full"
         >
-          <Text className="text-slate-600 text-xs">View All</Text>
+          <Text className="text-slate-600 text-xs font-inter-semibold">
+            View All
+          </Text>
         </TouchableOpacity>
       ) : null}
     </View>

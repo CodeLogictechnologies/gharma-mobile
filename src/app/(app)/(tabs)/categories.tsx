@@ -1,4 +1,4 @@
-import Category from "@/screen/category/Category";
+import Category from "@/features/category/Category";
 import React from "react";
 
 const categories = () => {

@@ -1,4 +1,4 @@
-import Home from "@/screen/home/Home";
+import Home from "@/features/home/Home";
 import React from "react";
 
 const home = () => {
