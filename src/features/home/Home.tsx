@@ -5,6 +5,7 @@ import OrderSuccessModal from "@/features/cart/components/OrderSuccessModal";
 import { useAddtoCart, useAddtoCartList } from "@/features/cart/hooks";
 import { useGuestCartStore } from "@/features/cart/store/GuestCartItem";
 import { useGetUserDetails } from "@/features/profile/hooks";
+import { shadeHexColor } from "@/libs/shadeHexColor";
 import { useAuthStore } from "@/store/useAuth";
 import { useNotificationStore } from "@/store/useNotificationStore";
 import { router } from "expo-router";
@@ -24,6 +25,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { ScrollView } from "react-native-gesture-handler";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -33,6 +35,8 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { useBrandList } from "../brand/hooks";
+import { useGetCatrgoryList } from "../category/hooks";
 import CategoryTabs from "./components/CategoryTabItem";
 import FloatingCart from "./components/FloatingCart";
 import HomePageBanner from "./components/HomePageBanner";
@@ -45,6 +49,8 @@ import {
 const SEARCH_HEIGHT = 70;
 const CATEGORY_HEIGHT = 60;
 const DEFAULT_HEADER_COLOR = "#FFEDD4";
+
+const SHADE_AMOUNT = 0.5;
 
 export default function Home() {
   const token = useAuthStore((s) => s.token);
@@ -67,8 +73,21 @@ export default function Home() {
   const fromColor = useSharedValue(DEFAULT_HEADER_COLOR);
   const toColor = useSharedValue(DEFAULT_HEADER_COLOR);
 
+  const fromShade = useSharedValue(
+    shadeHexColor(DEFAULT_HEADER_COLOR, SHADE_AMOUNT),
+  );
+  const toShade = useSharedValue(
+    shadeHexColor(DEFAULT_HEADER_COLOR, SHADE_AMOUNT),
+  );
+
   const { data: AddToCArtList, refetch: refetchCart } = useAddtoCartList();
   const { refetch: refetchUserDetails } = useGetUserDetails();
+
+  const { data: categoryData, isPending: isCategoryLoading } =
+    useGetCatrgoryList();
+
+  const { data: brandData, isPending: isBrandLoading } = useBrandList();
+  const brands = brandData?.data ?? [];
 
   const {
     data: recommendationData,
@@ -134,6 +153,10 @@ export default function Home() {
 
       fromColor.value = headerColor;
       toColor.value = next;
+
+      fromShade.value = shadeHexColor(headerColor, SHADE_AMOUNT);
+      toShade.value = shadeHexColor(next, SHADE_AMOUNT);
+
       colorProgress.value = 0;
       colorProgress.value = withTiming(1, { duration: 400 });
 
@@ -264,6 +287,9 @@ export default function Home() {
             isLoading={isTabsLoading}
             activeIndex={activeIndex}
             onChange={handleCategoryChange}
+            colorProgress={colorProgress}
+            fromShade={fromShade}
+            toShade={toShade}
           />
         </View>
         <View className="bg-white pb-4" />
@@ -290,9 +316,128 @@ export default function Home() {
           />
         }
       >
+        <View className="pt-4">
+          <View className="flex-row items-center justify-between px-4 mb-3">
+            <Text className="text-base font-inter-bold text-slate-900">
+              Shop by Category
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.navigate("/(app)/(tabs)/categories")}
+              activeOpacity={0.7}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Text className="text-xs font-inter-semibold text-amber-600">
+                See All
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}
+          >
+            {isCategoryLoading
+              ? Array.from({ length: 8 }).map((_, idx) => (
+                  <View key={idx} className="items-center w-20">
+                    <View className="w-20 h-20 rounded-2xl bg-slate-100 mb-2" />
+                    <View className="w-14 h-2 rounded-full bg-slate-100" />
+                  </View>
+                ))
+              : categoryData?.categories?.map((item) => (
+                  <TouchableOpacity
+                    key={item.categoryid}
+                    onPress={() =>
+                      router.navigate({
+                        pathname: "/subcategory",
+                        params: {
+                          categoryTitle: item.title,
+                          categoryId: item.categoryid,
+                        },
+                      })
+                    }
+                    activeOpacity={0.7}
+                    className="items-center w-20"
+                  >
+                    <View className="w-20 h-20 rounded-2xl bg-sky-50 items-center justify-center mb-2 p-2">
+                      <Image
+                        source={{ uri: item.image }}
+                        className="w-full h-full"
+                        resizeMode="contain"
+                      />
+                    </View>
+                    <Text
+                      numberOfLines={2}
+                      className="text-xs text-center font-inter-semibold text-slate-800 leading-4"
+                    >
+                      {item.title}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+          </ScrollView>
+        </View>
+
         <HomePageBanner />
 
-        <Container className="pt-3">
+        <View className="pt-5">
+          <View className="flex-row items-center justify-between px-4 mb-3">
+            <Text className="text-base font-inter-bold text-slate-900">
+              Shop by Brand
+            </Text>
+            <TouchableOpacity
+              onPress={() => router.navigate("/brand")}
+              activeOpacity={0.7}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Text className="text-xs font-inter-semibold text-amber-600">
+                See All
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}
+          >
+            {isBrandLoading
+              ? Array.from({ length: 8 }).map((_, idx) => (
+                  <View key={idx} className="items-center w-20">
+                    <View className="w-20 h-20 rounded-xl bg-slate-100 mb-2" />
+                    <View className="w-14 h-2 rounded-full bg-slate-100" />
+                  </View>
+                ))
+              : brands.map((item: any) => (
+                  <TouchableOpacity
+                    key={item.id}
+                    onPress={() =>
+                      router.navigate({
+                        pathname: "/brandproducts",
+                        params: { brandName: item.name, brandId: item.id },
+                      })
+                    }
+                    activeOpacity={0.7}
+                    className="items-center w-20"
+                  >
+                    <View className="w-20 h-20 rounded-xl bg-slate-50 items-center justify-center mb-2 p-2">
+                      <Image
+                        source={{ uri: item.image_url }}
+                        className="w-full h-full"
+                        resizeMode="contain"
+                      />
+                    </View>
+                    <Text
+                      numberOfLines={2}
+                      className="text-xs text-center font-inter-semibold text-slate-800 leading-4"
+                    >
+                      {item.name}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+          </ScrollView>
+        </View>
+
+        <Container className="pt-5">
           {token && (
             <ProductCarousel
               title="Your Go-To Picks"
@@ -300,7 +445,16 @@ export default function Home() {
               showHeader
               moreOption={
                 <TouchableOpacity
-                  onPress={() => router.navigate("/morepage")}
+                  onPress={() =>
+                    router.navigate({
+                      pathname: "/morepage",
+                      params: {
+                        title: "Your Go-To Picks",
+                        tab_id: activeTab,
+                        source: "recommendation",
+                      },
+                    })
+                  }
                   activeOpacity={0.7}
                   hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                   className="bg-white border border-slate-200 w-8 h-8 rounded-full items-center justify-center"
@@ -329,6 +483,16 @@ export default function Home() {
               showHeader
               moreOption={
                 <TouchableOpacity
+                  onPress={() =>
+                    router.navigate({
+                      pathname: "/morepage",
+                      params: {
+                        title: "Just In",
+                        tab_id: activeTab,
+                        source: "products",
+                      },
+                    })
+                  }
                   activeOpacity={0.7}
                   className="border border-slate-200 px-3 py-1.5 rounded-full"
                 >
@@ -365,6 +529,16 @@ export default function Home() {
             showHeader
             moreOption={
               <TouchableOpacity
+                onPress={() =>
+                  router.navigate({
+                    pathname: "/morepage",
+                    params: {
+                      title: "Organically grown fruits & Veggies",
+                      tab_id: activeTab,
+                      source: "products",
+                    },
+                  })
+                }
                 activeOpacity={0.7}
                 className="bg-white border border-slate-200 w-8 h-8 rounded-full items-center justify-center"
               >

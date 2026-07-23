@@ -209,7 +209,11 @@ const OrderStatusBottomSheet = ({
       enableDynamicSizing
       onChange={handleSheetChange}
       handleIndicatorStyle={{ backgroundColor: "#d1d5db", width: 40 }}
-      backgroundStyle={{ borderTopLeftRadius: 24, borderTopRightRadius: 24 }}
+      backgroundStyle={{
+        backgroundColor: "#ffffff",
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+      }}
     >
       <BottomSheetScrollView
         contentContainerStyle={{ paddingBottom: 32 }}

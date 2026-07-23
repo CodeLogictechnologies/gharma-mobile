@@ -23,6 +23,10 @@ export interface RecommendationData {
   total_qty: number;
   value: string;
   variation_id: string;
+  discount_type?: "fixed" | "percentage" | null;
+  discount_value?: string | null;
+  discount_percentage?: string | null;
+  original_price?: string | null;
 }
 
 export interface Recommendation {
@@ -51,7 +55,7 @@ export interface OrderItem {
 export interface OrderRequestBody {
   total: number;
   addressid: string;
-  paymentmethod: string,
+  paymentmethod: string;
   items: OrderItem[];
 }
 

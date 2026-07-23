@@ -1,12 +1,15 @@
 import ProductGrid from "@/components/common/ProductGrid";
+import OrderSuccessModal from "@/features/cart/components/OrderSuccessModal";
+import { useAddtoCart, useAddtoCartList } from "@/features/cart/hooks";
 import {
+  useHomePageProductList,
   useSearchPageProductList,
   useUserRecommendationList,
 } from "@/features/home/hooks";
 import { ProductItem, RecommendationData } from "@/features/home/types";
 import { useProductSearchWords } from "@/features/productsearch/hooks";
 import useDebounce from "@/hooks/useDebounce";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { ChevronLeft, Search, X } from "lucide-react-native";
 import React, { useRef, useState } from "react";
 import {
@@ -23,24 +26,40 @@ import Animated, {
   ZoomIn,
   ZoomOut,
 } from "react-native-reanimated";
+import FloatingCart from "./components/FloatingCart";
 
 const mapRecommendationToProductItem = (
   item: RecommendationData,
 ): ProductItem => ({
-  productid: item.item_id,
-  variationid: item.variation_id,
+  productid: item.productid ?? item.item_id ?? "",
+  variationid: item.variationid ?? item.variation_id ?? "",
   title: item.title,
   images: item.images ?? [],
   price: item.price,
-  discount_type: null,
-  discount_value: null,
-  discount_percentage: null,
-  original_price: null,
+  discount_type: item.discount_type ?? null,
+  discount_value: item.discount_value ?? null,
+  discount_percentage: item.discount_percentage ?? null,
+  original_price: item.original_price ?? null,
 });
 
+type Source = "recommendation" | "products";
+
 const MorePage = () => {
+  const { title, tab_id, source } = useLocalSearchParams<{
+    title?: string;
+    tab_id?: string;
+    source?: Source;
+  }>();
+
+  const pageTitle = title || "Just In";
+  const tabId = tab_id ?? "";
+  const dataSource: Source =
+    source === "recommendation" ? "recommendation" : "products";
+
   const [search, setSearch] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [successModalVisible, setSuccessModalVisible] = useState(false);
+  const [orderResponse, setOrderResponse] = useState<any>(null);
   const debouncedSearch = useDebounce(search, 500);
   const inputRef = useRef<TextInput>(null);
 
@@ -52,16 +71,42 @@ const MorePage = () => {
     useProductSearchWords();
 
   const {
-    data,
+    data: recommendationPages,
     isPending: isRecommendationPending,
-    fetchNextPage,
-    hasNextPage,
-  } = useUserRecommendationList({ tab_id: "" });
+    fetchNextPage: fetchNextRecommendation,
+    hasNextPage: hasNextRecommendation,
+  } = useUserRecommendationList({ tab_id: tabId });
+
+  const {
+    data: productPages,
+    isPending: isProductsPending,
+    fetchNextPage: fetchNextProduct,
+    hasNextPage: hasNextProduct,
+  } = useHomePageProductList({ tab_id: tabId });
 
   const RecommendationProduct: ProductItem[] =
-    data?.pages
+    recommendationPages?.pages
       ?.flatMap((page) => page.result?.data ?? [])
       ?.map(mapRecommendationToProductItem) ?? [];
+
+  const HomeProductList: ProductItem[] =
+    productPages?.pages?.flatMap((page) => page.result?.data ?? []) ?? [];
+
+  const gridProducts =
+    dataSource === "recommendation" ? RecommendationProduct : HomeProductList;
+  const isGridLoading =
+    dataSource === "recommendation"
+      ? isRecommendationPending
+      : isProductsPending;
+  const hasNext =
+    dataSource === "recommendation" ? hasNextRecommendation : hasNextProduct;
+  const fetchNext =
+    dataSource === "recommendation"
+      ? fetchNextRecommendation
+      : fetchNextProduct;
+
+  const { mutate: addToCart } = useAddtoCart();
+  const { data: AddToCArtList } = useAddtoCartList();
 
   const openSearch = () => {
     setIsSearchOpen(true);
@@ -75,15 +120,10 @@ const MorePage = () => {
   };
 
   return (
-    <ScrollView
-      className="px-4 py-2 bg-white"
-      contentContainerStyle={{ flexGrow: 1 }}
-      keyboardShouldPersistTaps="handled"
-      showsVerticalScrollIndicator={false}
-    >
+    <View style={{ flex: 1, backgroundColor: "white" }}>
       <Animated.View
         layout={LinearTransition.springify().mass(0.8)}
-        className="flex-row items-center justify-between h-12"
+        className="flex-row items-center justify-between h-12 "
       >
         {!isSearchOpen && (
           <Animated.View
@@ -99,7 +139,7 @@ const MorePage = () => {
               <ChevronLeft size={22} color="#0f172a" strokeWidth={2} />
             </TouchableOpacity>
             <Text className="text-lg font-inter-bold text-slate-900">
-              Just In
+              {pageTitle}
             </Text>
           </Animated.View>
         )}
@@ -109,7 +149,7 @@ const MorePage = () => {
             entering={FadeIn.duration(220)}
             exiting={FadeOut.duration(180)}
             layout={LinearTransition.springify().mass(0.8)}
-            className="flex-1 flex-row items-center bg-white border border-primary/50 rounded-3xl px-3 h-10"
+            className="flex-1 flex-row items-center bg-white border border-primary/50 rounded-3xl px-3 h-10 mx-4"
           >
             <Search size={15} color="#737373" strokeWidth={2} />
 
@@ -148,66 +188,88 @@ const MorePage = () => {
           </Animated.View>
         )}
       </Animated.View>
+      <ScrollView
+        className="px-4 py-2 bg-white"
+        contentContainerStyle={{ flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {search.length === 0 && (
+          <Animated.View
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(150)}
+          >
+            <Text className="text-xs text-slate-400 font-medium mt-3">
+              {gridProducts.length} Results Found
+            </Text>
+            <ProductGrid
+              products={gridProducts}
+              numColumns={3}
+              isLoading={isGridLoading}
+              onAddToCart={(id) => addToCart(id, 1)}
+              onRemoveAddToCart={(id) => addToCart(id, -1)}
+              onEndReached={() => {
+                if (hasNext) fetchNext();
+              }}
+              onEndReachedThreshold={0.3}
+            />
+          </Animated.View>
+        )}
 
-      {search.length === 0 && (
-        <Animated.View
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(150)}
-        >
-          <Text className="text-xs text-slate-400 font-medium mt-3">
-            {RecommendationProduct.length} Results Found
-          </Text>
-          <ProductGrid
-            products={RecommendationProduct}
-            numColumns={3}
-            isLoading={isRecommendationPending}
-            onAddToCart={() => console.log("")}
-            onEndReached={() => {
-              if (hasNextPage) fetchNextPage();
-            }}
-            onEndReachedThreshold={0.3}
-          />
-        </Animated.View>
-      )}
-
-      {search.length > 0 && products.length > 0 && (
-        <Animated.View
-          entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(150)}
-        >
-          <View className="mt-3 bg-white">
-            {products.slice(0, 5).map((item, index) => (
-              <Animated.View
-                key={index}
-                entering={FadeIn.delay(index * 50).duration(200)}
-              >
-                <TouchableOpacity
-                  onPress={() => setSearch(item.title)}
-                  activeOpacity={0.7}
-                  className="flex-row items-center py-2.5"
+        {search.length > 0 && products.length > 0 && (
+          <Animated.View
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(150)}
+          >
+            <View className="mt-3 bg-white">
+              {products.slice(0, 5).map((item, index) => (
+                <Animated.View
+                  key={index}
+                  entering={FadeIn.delay(index * 50).duration(200)}
                 >
-                  <Search size={12} color="#737373" strokeWidth={1.5} />
-                  <Text className="text-slate-600 ml-3 text-xs">
-                    {item.title}
-                  </Text>
-                </TouchableOpacity>
-              </Animated.View>
-            ))}
-          </View>
+                  <TouchableOpacity
+                    onPress={() => setSearch(item.title)}
+                    activeOpacity={0.7}
+                    className="flex-row items-center py-2.5"
+                  >
+                    <Search size={12} color="#737373" strokeWidth={1.5} />
+                    <Text className="text-slate-600 ml-3 text-xs">
+                      {item.title}
+                    </Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              ))}
+            </View>
 
-          <Text className="font-inter-semibold text-sm text-slate-900 mt-3">
-            Showing results for "{search}"
-          </Text>
+            <Text className="font-inter-semibold text-sm text-slate-900 mt-3">
+              Showing results for "{search}"
+            </Text>
 
-          <ProductGrid
-            products={products || []}
-            numColumns={3}
-            isLoading={isSearchLoading}
-            onAddToCart={() => console.log("")}
-          />
-        </Animated.View>
-      )}
-    </ScrollView>
+            <ProductGrid
+              products={products || []}
+              numColumns={3}
+              isLoading={isSearchLoading}
+              onAddToCart={(id) => addToCart(id, 1)}
+              onRemoveAddToCart={(id) => addToCart(id, -1)}
+            />
+          </Animated.View>
+        )}
+      </ScrollView>
+
+      <FloatingCart
+        data={AddToCArtList?.data || []}
+        onOrderSuccess={(data) => {
+          setOrderResponse(data);
+          setSuccessModalVisible(true);
+        }}
+      />
+
+      <OrderSuccessModal
+        visible={successModalVisible}
+        onClose={() => setSuccessModalVisible(false)}
+        orderData={orderResponse}
+      />
+    </View>
   );
 };
 

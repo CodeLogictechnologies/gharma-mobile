@@ -1,3 +1,4 @@
+import { useLogOut } from "@/features/auth/login/hooks";
 import { useAuthStore } from "@/store/useAuth";
 import { router } from "expo-router";
 import {
@@ -40,7 +41,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { useLogOut } from "@/features/auth/login/hooks";
 import MenuItem from "./components/MenuItem";
 import { useGetUserDetails, useUserLoyalty } from "./hooks";
 
@@ -221,20 +221,16 @@ const Profile = () => {
   return (
     <View className="flex-1 bg-secondary">
       <View className="px-4 py-1">
-        <View className="flex-row justify-between items-center py-3">
+        <View className="flex-row items-center py-3 relative">
           <TouchableOpacity
             onPress={() => router.back()}
-            className="p-0.5 border-black border rounded-full"
+            className="p-0.5 border-black border rounded-full absolute left-0 z-10"
           >
             <ChevronLeft color="black" size={14} />
           </TouchableOpacity>
-          <View className="flex-row gap-16 items-center">
+
+          <View className="flex-1 items-center">
             <Text className="text-lg font-bold">Profile</Text>
-            <View className="flex-row gap-4 items-center">
-              <Headset color="black" size={16} strokeWidth={2} />
-              <Bell color="black" size={16} strokeWidth={2} />
-              <Settings color="black" size={16} strokeWidth={2} />
-            </View>
           </View>
         </View>
       </View>
@@ -245,7 +241,7 @@ const Profile = () => {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <View className="relative mt-1 mb-2">
+        <TouchableOpacity className="relative mt-1 mb-2">
           <Image
             source={{
               uri:
@@ -254,30 +250,31 @@ const Profile = () => {
             }}
             className="w-20 h-20 rounded-full border-2 border-white bg-white shadow-sm"
           />
-          <TouchableOpacity className="absolute bottom-1 right-0.5">
+          <View className="absolute bottom-1 right-0.5">
             <View className="bg-primary p-1.5 rounded-full">
               <Camera color="white" size={13} strokeWidth={2} />
             </View>
-          </TouchableOpacity>
-        </View>
+          </View>
+        </TouchableOpacity>
 
-        <View className="flex-row items-center gap-3 mb-1 pl-4">
+        <TouchableOpacity
+          onPress={() =>
+            router.navigate({
+              pathname: "/(app)/profileupdate",
+              params: { ...user },
+            })
+          }
+          className="flex-row items-center gap-3 mb-1 pl-4"
+        >
           <Text className="text-lg font-extrabold text-center">
             {`${user?.first_name ?? ""} ${user?.middle_name ?? ""} ${user?.last_name ?? ""}`.trim() ||
               user?.username ||
               "Guest"}
           </Text>
-          <TouchableOpacity
-            onPress={() =>
-              router.navigate({
-                pathname: "/(app)/profileupdate",
-                params: { ...user },
-              })
-            }
-          >
+          <View>
             <Pencil color="black" size={14} />
-          </TouchableOpacity>
-        </View>
+          </View>
+        </TouchableOpacity>
 
         {user?.status === "Pending" && (
           <View className="flex-row items-center gap-1.5 bg-yellow-50 border border-yellow-300 rounded-full px-3 py-1 mb-2">

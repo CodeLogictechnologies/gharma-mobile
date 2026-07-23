@@ -1,4 +1,5 @@
 import { useRecentlyViewed } from "@/features/recentlyviewed/hooks";
+import { formatPrice } from "@/libs/formatPrice";
 import { useAuthStore } from "@/store/useAuth";
 import { useRouter } from "expo-router";
 import {
@@ -115,13 +116,13 @@ const RecentlyViewed = () => {
               <Text className="text-gray-400 text-xs">
                 {formatDate(item.viewed_at)}
               </Text>
-            </View>
+            </View> 
             <View className="flex-row items-center mt-1.5 gap-2">
               <Text className="text-gray-400 line-through text-xs">
-                Rs. {(parseFloat(item.price) * 1.2).toFixed(2)}
+                {formatPrice((parseFloat(item.price) * 1.2).toFixed(2))}
               </Text>
               <Text className="text-gray-900 font-bold text-sm">
-                Rs. {item.price}
+                {formatPrice(item.price)}
               </Text>
             </View>
           </View>

@@ -1,7 +1,7 @@
-import "@/global.css";
 import NetworkButton from "@/components/common/NetworkButton";
 import { useCustomerAddress } from "@/features/address/hooks";
 import { useAddressStore, useHasAddress } from "@/features/address/store";
+import "@/global.css";
 import { useFCMTokenManager } from "@/notifications/useNotificationToken";
 import { useUpdateAndNotification } from "@/notifications/useUpdateAndNotification";
 import AppProviders from "@/providers/AppProviders";

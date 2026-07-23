@@ -6,7 +6,7 @@ import FloatingCart from "@/features/home/components/FloatingCart";
 import { useHomePageProductList } from "@/features/home/hooks";
 import { useAuthStore } from "@/store/useAuth";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { ArrowLeft, ChevronDown, SlidersHorizontal } from "lucide-react-native";
+import { ArrowLeft, ChevronDown } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
@@ -140,7 +140,7 @@ const SubCategories = () => {
         </View>
       </View>
 
-      <View className="border-b border-gray-100 px-4 py-2 flex-row gap-2 bg-white">
+      {/* <View className="border-b border-gray-100 px-4 py-2 flex-row gap-2 bg-white">
         <TouchableOpacity
           activeOpacity={0.7}
           className="flex-row items-center border border-gray-200 bg-gray-50 rounded-full px-3 py-1.5"
@@ -172,7 +172,7 @@ const SubCategories = () => {
           <Text className="text-xs font-semibold text-gray-700">Price</Text>
           <ChevronDown size={12} color="#4b5563" style={{ marginLeft: 4 }} />
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       <View className="flex-1 flex-row mb-8">
         {hasSubCategories && (

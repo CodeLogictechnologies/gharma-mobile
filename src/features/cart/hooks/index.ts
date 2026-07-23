@@ -43,14 +43,14 @@ export const useAddtoCartList = () => {
 interface CartSyncEntry {
   variationid: string | number;
   baseline: CartItem | null;
-  /** Net delta of the cycle; quantity fallback if the list was never cached. */
+  /** Cumulative delta applied optimistically since last sync */
   pendingDelta: number;
+  /** The absolute quantity we expect after all pending deltas */
+  targetQty: number;
   timer?: ReturnType<typeof setTimeout>;
   controller?: AbortController;
 }
 
-// Module-level: taps for the same item from different screens (Home,
-// SubCategories, ProductDetails, Cart) must share a single cycle.
 const cartSync = new Map<string, CartSyncEntry>();
 
 interface CartMutationVariables extends UpdateCartPayload {
@@ -77,8 +77,6 @@ interface CachedProductList {
   result?: { data?: CachedProductLike[] };
 }
 
-/** Best-effort product info from already-cached product lists, used to
- *  render a cart entry optimistically before the server echoes it back. */
 const lookupProductInfo = (queryClient: QueryClient, key: string) => {
   const sources = [
     ...queryClient.getQueriesData<CachedProductList>({
@@ -111,7 +109,6 @@ const lookupProductInfo = (queryClient: QueryClient, key: string) => {
   return { unitPrice, title, image };
 };
 
-/** Applies a quantity delta to the cached cart list (the optimistic write). */
 const applyDeltaToCache = (
   queryClient: QueryClient,
   key: string,
@@ -168,8 +165,6 @@ const applyDeltaToCache = (
   });
 };
 
-/** Atomically restores a single item to its server-confirmed state,
- *  leaving every other (possibly still optimistic) item untouched. */
 const restoreCartItem = (
   queryClient: QueryClient,
   key: string,
@@ -181,7 +176,6 @@ const restoreCartItem = (
     const exists = !!findCartItem(old.data, key);
 
     if (!baseline) {
-      // Item did not exist on the server before this cycle: drop the ghost.
       return exists
         ? {
             ...old,
@@ -201,8 +195,6 @@ const restoreCartItem = (
   });
 };
 
-/** After a confirmed request, the confirmed quantity becomes the new
- *  rollback point for any taps that were queued while it was in flight. */
 const confirmBaseline = (entry: CartSyncEntry, key: string, qty: string) => {
   const confirmedQty = Number(qty);
   if (confirmedQty <= 0) {
@@ -211,7 +203,7 @@ const confirmBaseline = (entry: CartSyncEntry, key: string, qty: string) => {
   }
 
   const source = entry.baseline;
-  if (!source) return; // new item; server list will provide it on next refetch
+  if (!source) return;
 
   const unitPrice =
     Number(source.productprice) ||
@@ -240,20 +232,15 @@ export const useAddtoCart = () => {
       cartService.updateCartItem({ variationid, qty }, signal),
 
     onMutate: async ({ key }) => {
-      // The optimistic write already happened on tap (instant UI). Here we
-      // only stop refetches from clobbering it and capture the rollback point.
       await queryClient.cancelQueries({ queryKey: CART_LIST_KEY });
       return { baseline: cartSync.get(key)?.baseline ?? null };
     },
 
     onSuccess: (_data, { key, qty, signal }) => {
       const entry = cartSync.get(key);
-      // A newer request for this item owns the outcome.
       if (!entry || entry.controller?.signal !== signal) return;
 
       if (entry.timer) {
-        // User kept tapping while this request was in flight; the cycle
-        // stays open but rolls forward from the just-confirmed quantity.
         entry.controller = undefined;
         confirmBaseline(entry, key, qty);
       } else {
@@ -263,7 +250,6 @@ export const useAddtoCart = () => {
     },
 
     onError: (error, { key, signal }, context) => {
-      // Cancelled because a newer request superseded it — not a failure.
       if (signal.aborted) return;
 
       const entry = cartSync.get(key);
@@ -282,8 +268,6 @@ export const useAddtoCart = () => {
 
     onSettled: (_data, error, { signal }) => {
       if (error && signal.aborted) return;
-      // Refetch only when no item has a pending or in-flight cycle,
-      // otherwise the server snapshot would erase optimistic quantities.
       if (cartSync.size === 0) {
         queryClient.invalidateQueries({ queryKey: CART_LIST_KEY });
       }
@@ -296,20 +280,11 @@ export const useAddtoCart = () => {
       if (!entry) return;
       entry.timer = undefined;
 
-      // Last write wins per item: cancel a superseded in-flight request.
       entry.controller?.abort();
       const controller = new AbortController();
       entry.controller = controller;
 
-      const cache = queryClient.getQueryData<CartAPIResponse>(CART_LIST_KEY);
-      const cachedItem = cache?.data
-        ? findCartItem(cache.data, key)
-        : undefined;
-      const qty = cache?.data
-        ? cachedItem
-          ? Number(cachedItem.total_quantity)
-          : 0
-        : Math.max(0, entry.pendingDelta);
+      const qty = Math.max(0, entry.targetQty);
 
       mutation.mutate({
         key,
@@ -318,33 +293,34 @@ export const useAddtoCart = () => {
         signal: controller.signal,
       });
     },
-    [mutation, queryClient],
+    [mutation],
   );
 
-  /**
-   * Optimistically applies `delta` to the cached cart (instant UI feedback)
-   * and schedules a debounced, per-item server sync of the resulting
-   * absolute quantity.
-   */
   const addToCart = useCallback(
     (variationid: string | number, delta: number = 1) => {
       const key = String(variationid);
 
       let entry = cartSync.get(key);
       if (!entry) {
-        // First tap of a cycle: snapshot the server-confirmed state BEFORE
-        // any optimistic write so a failure can roll back cleanly.
         const cache = queryClient.getQueryData<CartAPIResponse>(CART_LIST_KEY);
+        const baselineItem = cache?.data && findCartItem(cache.data, key);
+        const baselineQty = baselineItem
+          ? Number(baselineItem.total_quantity)
+          : 0;
+
         entry = {
           variationid,
-          baseline: (cache?.data && findCartItem(cache.data, key)) ?? null,
+          baseline: baselineItem ?? null,
           pendingDelta: 0,
+          targetQty: baselineQty,
         };
         cartSync.set(key, entry);
         setPending(key);
       }
 
       entry.pendingDelta += delta;
+      entry.targetQty = Math.max(0, entry.targetQty + delta);
+
       applyDeltaToCache(queryClient, key, delta);
 
       if (entry.timer) clearTimeout(entry.timer);
@@ -353,7 +329,6 @@ export const useAddtoCart = () => {
     [queryClient, send, setPending],
   );
 
-  /** Immediately syncs every debounced item (e.g. before checkout). */
   const flushPendingCart = useCallback(() => {
     cartSync.forEach((entry, key) => {
       if (!entry.timer) return;

@@ -1,6 +1,4 @@
-import BottomSheet, {
-  BottomSheetView,
-} from "@expo/ui/community/bottom-sheet";
+import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Text, TouchableOpacity, View } from "react-native";
 import { RoleData } from "../types";
@@ -20,8 +18,6 @@ export const RoleSelectionSheet = ({
 }: Props) => {
   const bottomSheetRef = useRef<BottomSheet>(null);
   const [selectedRoleId, setSelectedRoleId] = useState<number | null>(null);
-
-  const snapPoints = ["50%"];
 
   const handleSheetChange = useCallback(
     (index: number) => {
@@ -60,17 +56,27 @@ export const RoleSelectionSheet = ({
     <BottomSheet
       ref={bottomSheetRef}
       index={-1}
-      snapPoints={snapPoints}
+      enablePanDownToClose
+      enableDynamicSizing
       onChange={handleSheetChange}
-      enablePanDownToClose={!isLoading}
       handleComponent={() => (
         <View className="items-center pt-3 pb-1">
           <View className="w-10 h-1 rounded-full bg-gray-300" />
         </View>
       )}
+      backgroundStyle={{
+        backgroundColor: "#ffffff",
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+      }}
     >
       <BottomSheetView
-        style={{ flex: 1, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 24 }}
+        style={{
+          paddingHorizontal: 24,
+          paddingTop: 8,
+          paddingBottom: 24,
+          // removed flex: 1
+        }}
       >
         <Text className="text-xl font-bold text-center text-gray-900 mb-1">
           Select Role

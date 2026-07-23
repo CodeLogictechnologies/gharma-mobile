@@ -1,4 +1,4 @@
-import * as icons from "lucide-react-native/icons";
+import { DynamicIcon } from "@/components/common/DynamicIcon";
 import React, { useRef } from "react";
 import {
   Dimensions,
@@ -8,9 +8,8 @@ import {
   View,
 } from "react-native";
 import Animated, {
-  LinearTransition,
-  SlideInLeft,
-  SlideOutRight,
+  interpolateColor,
+  SharedValue,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -19,42 +18,30 @@ import { HomeTabsItem } from "../types";
 
 const screenWidth = Dimensions.get("window").width;
 
-const DynamicIcon = ({
-  name,
-  color = "black",
-  size = 20,
-  strokeWidth = 2,
-}: {
-  name: string;
-  color?: string;
-  size?: number;
-  strokeWidth?: number;
-}) => {
-  const LucideIcon = icons[name as keyof typeof icons] as
-    | React.ComponentType<{
-        color?: string;
-        size?: number;
-        strokeWidth?: number;
-      }>
-    | undefined;
-
-  if (!LucideIcon) return null;
-  return <LucideIcon color={color} size={size} strokeWidth={strokeWidth} />;
-};
-
 type Props = {
   tabs: HomeTabsItem[];
   isLoading?: boolean;
   activeIndex: number;
   onChange: (index: number, tabId: string) => void;
+  colorProgress: SharedValue<number>;
+  fromShade: SharedValue<string>;
+  toShade: SharedValue<string>;
 };
 
-const CategoryTabs = ({ tabs, isLoading, activeIndex, onChange }: Props) => {
+const CategoryTabs = ({
+  tabs,
+  isLoading,
+  activeIndex,
+  onChange,
+  colorProgress,
+  fromShade,
+  toShade,
+}: Props) => {
   const scrollRef = useRef<ScrollView>(null);
 
   const handlePress = (index: number, tabId: string) => {
     onChange(index, tabId);
-    const itemWidth = 90;
+    const itemWidth = 80;
     const x = index * itemWidth - screenWidth / 2 + itemWidth / 2;
     scrollRef.current?.scrollTo({ x: Math.max(0, x), animated: true });
   };
@@ -63,14 +50,13 @@ const CategoryTabs = ({ tabs, isLoading, activeIndex, onChange }: Props) => {
     return (
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {Array.from({ length: 5 }).map((_, i) => (
-          <Animated.View
+          <View
             key={i}
-            entering={SlideInLeft.delay(i * 60)}
-            className="min-w-[80px] items-center justify-center px-2 py-2 mx-0.5"
+            className="min-w-[80px] items-center justify-center px-2 py-2"
           >
-            <Animated.View className="w-10 h-10 rounded-full bg-black/10 mb-1" />
-            <Animated.View className="w-14 h-2.5 rounded-full bg-black/10" />
-          </Animated.View>
+            <View className="w-10 h-10 rounded-full bg-black/10 mb-1" />
+            <View className="w-14 h-2.5 rounded-full bg-black/10" />
+          </View>
         ))}
       </ScrollView>
     );
@@ -88,6 +74,9 @@ const CategoryTabs = ({ tabs, isLoading, activeIndex, onChange }: Props) => {
           cat={cat}
           isActive={activeIndex === index}
           onPress={() => handlePress(index, cat.id)}
+          colorProgress={colorProgress}
+          fromShade={fromShade}
+          toShade={toShade}
         />
       ))}
     </ScrollView>
@@ -98,10 +87,16 @@ const CategoryTabItem = ({
   cat,
   isActive,
   onPress,
+  colorProgress,
+  fromShade,
+  toShade,
 }: {
   cat: HomeTabsItem;
   isActive: boolean;
   onPress: () => void;
+  colorProgress: SharedValue<number>;
+  fromShade: SharedValue<string>;
+  toShade: SharedValue<string>;
 }) => {
   const offset = useSharedValue(0);
 
@@ -117,6 +112,31 @@ const CategoryTabItem = ({
     ],
   }));
 
+  const tabBgStyle = useAnimatedStyle(() => ({
+    backgroundColor: isActive
+      ? "#ffffff"
+      : interpolateColor(
+          colorProgress.value,
+          [0, 1],
+          [fromShade.value || "#ffffff", toShade.value || "#ffffff"],
+        ),
+  }));
+
+  const notchBgStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(
+      colorProgress.value,
+      [0, 1],
+      [fromShade.value || "#ffffff", toShade.value || "#ffffff"],
+    ),
+  }));
+
+  const notchOpacityStyle = useAnimatedStyle(() => ({
+    opacity: withSpring(isActive ? 1 : 0, {
+      damping: 20,
+      stiffness: 150,
+    }),
+  }));
+
   return (
     <TouchableOpacity
       activeOpacity={0.9}
@@ -128,56 +148,49 @@ const CategoryTabItem = ({
       className="min-w-[80px] items-center justify-center"
     >
       <Animated.View
-        entering={SlideInLeft}
-        exiting={SlideOutRight}
-        layout={LinearTransition.springify()}
-        style={slideWithBounce}
-        className={`w-full items-center justify-center px-2 py-2 rounded-t-2xl ${
-          isActive ? "bg-white" : "bg-[#FFF7ED]"
-        }`}
+        style={[slideWithBounce, tabBgStyle]}
+        className="w-full items-center justify-center px-2 py-2 rounded-t-2xl"
       >
-        {isActive && (
-          <>
-            <View
-              pointerEvents="none"
-              style={{
-                position: "absolute",
-                bottom: 0,
-                left: -12,
-                width: 12,
-                height: 12,
-                backgroundColor: "#fff",
-              }}
-            >
-              <View
-                style={{
-                  flex: 1,
-                  backgroundColor: "#FFF7ED",
-                  borderBottomRightRadius: 12,
-                }}
-              />
-            </View>
-            <View
-              pointerEvents="none"
-              style={{
-                position: "absolute",
-                bottom: 0,
-                right: -12,
-                width: 12,
-                height: 12,
-                backgroundColor: "#fff",
-              }}
-            >
-              <View
-                style={{
-                  flex: 1,
-                  backgroundColor: "#FFF7ED",
-                  borderBottomLeftRadius: 12,
-                }}
-              />
-            </View>
-          </>
-        )}
+        <Animated.View
+          style={[
+            { position: "absolute", bottom: 0, left: -10 },
+            notchOpacityStyle,
+          ]}
+          pointerEvents="none"
+        >
+          <View
+            style={{
+              width: 10,
+              height: 10,
+              backgroundColor: "#fff",
+            }}
+          >
+            <Animated.View
+              style={[{ flex: 1, borderBottomRightRadius: 10 }, notchBgStyle]}
+            />
+          </View>
+        </Animated.View>
+
+        <Animated.View
+          style={[
+            { position: "absolute", bottom: 0, right: -10 },
+            notchOpacityStyle,
+          ]}
+          pointerEvents="none"
+        >
+          <View
+            style={{
+              width: 10,
+              height: 10,
+              backgroundColor: "#fff",
+            }}
+          >
+            <Animated.View
+              style={[{ flex: 1, borderBottomLeftRadius: 10 }, notchBgStyle]}
+            />
+          </View>
+        </Animated.View>
+
         <DynamicIcon
           name={cat.icon_name}
           size={20}

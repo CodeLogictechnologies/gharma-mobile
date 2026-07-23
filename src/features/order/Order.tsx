@@ -1,4 +1,5 @@
 import { useAddtoCart } from "@/features/cart/hooks";
+import { formatPrice } from "@/libs/formatPrice";
 import { useAuthStore } from "@/store/useAuth";
 import { router } from "expo-router";
 import {
@@ -182,15 +183,14 @@ const OrderCard = React.memo(
 
     return (
       <View className="mt-2 p-4 bg-white">
-        {/* Store header */}
         <View className="flex-row justify-between items-center mb-3">
           <View className="flex-row items-center">
             <View className="w-6 h-6 bg-red-50 items-center justify-center rounded-full mr-2">
               <Store size={14} color="#ef4444" />
             </View>
-            <Text className="font-bold text-gray-800">
+            {/* <Text className="font-bold text-gray-800">
               Ram's Clothing Store
-            </Text>
+            </Text> */}
             <ChevronRight size={16} color="#9ca3af" strokeWidth={2.5} />
           </View>
           <TouchableOpacity
@@ -210,7 +210,6 @@ const OrderCard = React.memo(
           </TouchableOpacity>
         </View>
 
-        {/* Delivery info */}
         {item.time && (
           <TouchableOpacity
             onPress={() =>
@@ -232,7 +231,6 @@ const OrderCard = React.memo(
           </TouchableOpacity>
         )}
 
-        {/* Product info */}
         <View className="flex-row">
           <Image
             source={{ uri: item.image }}
@@ -250,7 +248,7 @@ const OrderCard = React.memo(
               Variation: {item.variation}
             </Text>
             <Text className="text-primary-dark font-inter-bold mt-1">
-              Rs. {item.price}
+              {formatPrice(item.price)}
             </Text>
           </View>
           <Text className="font-bold text-sm self-end text-gray-600">
@@ -258,15 +256,14 @@ const OrderCard = React.memo(
           </Text>
         </View>
 
-        {/* Footer */}
         <View className="items-end mt-4 border-t border-gray-100 pt-3">
           <Text className="text-xs text-gray-500">
             Total({item.quantity} items):
             <Text className="font-bold text-gray-900">
-              Rs. {(item.price * item.quantity).toLocaleString()}
+              {formatPrice(item.price * item.quantity)}
             </Text>
           </Text>
-          <View className="flex-row mt-3">
+          {/* <View className="flex-row mt-3">
             <TouchableOpacity
               activeOpacity={0.7}
               className="border border-gray-300 px-4 py-2.5 rounded-lg mr-2"
@@ -284,7 +281,7 @@ const OrderCard = React.memo(
                 {actionLabel}
               </Text>
             </TouchableOpacity>
-          </View>
+          </View> */}
         </View>
       </View>
     );
@@ -340,7 +337,6 @@ const Order = () => {
     [],
   );
 
-  // ─── Not logged in ─────────────────────────────────────────────
   if (!token) {
     return (
       <View className="flex-1 bg-white">
@@ -356,7 +352,6 @@ const Order = () => {
     );
   }
 
-  // ─── Loading ───────────────────────────────────────────────────
   if (isPending) {
     return (
       <View className="flex-1 bg-white">
@@ -379,7 +374,6 @@ const Order = () => {
     );
   }
 
-  // ─── Loaded ────────────────────────────────────────────────────
   return (
     <View className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" />

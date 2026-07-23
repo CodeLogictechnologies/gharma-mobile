@@ -9,7 +9,7 @@ import { AddressItem, useAddressStore } from "@/features/address/store";
 import { isInsideDeliveryZone } from "@/hooks/useDeliveryZone";
 import { useAuthStore } from "@/store/useAuth";
 import { router } from "expo-router";
-import { Button, Dialog } from "heroui-native";
+import { Dialog } from "heroui-native";
 import {
   AlertCircle,
   Check,
@@ -154,7 +154,6 @@ export default function MyAddress() {
           contentContainerStyle={{ padding: 16, paddingBottom: 100 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Loading */}
           {isLoadingAddresses && (
             <View className="items-center justify-center py-20">
               <ActivityIndicator size="large" color="#D7A11B" />
@@ -164,7 +163,6 @@ export default function MyAddress() {
             </View>
           )}
 
-          {/* Error */}
           {apiError && isLoggedIn && (
             <View className="items-center justify-center py-16 px-6">
               <AlertCircle size={32} color="#EF4444" />
@@ -177,7 +175,6 @@ export default function MyAddress() {
             </View>
           )}
 
-          {/* Empty */}
           {showEmpty && (
             <View className="items-center justify-center py-20">
               <View className="w-20 h-20 bg-primary-tint rounded-full items-center justify-center mb-4">
@@ -271,7 +268,11 @@ export default function MyAddress() {
                             right: 10,
                           }}
                         >
-                          <Star size={16} color="#9CA3AF" />
+                          {isSelected ? (
+                            <Star size={16} color="#d7a11b" fill={"#d7a11b"} />
+                          ) : (
+                            <Star size={16} color="#9CA3AF" />
+                          )}
                         </TouchableOpacity>
                       )}
                       <TouchableOpacity
@@ -322,25 +323,47 @@ export default function MyAddress() {
         onOpenChange={() => setDeleteTarget(null)}
       >
         <Dialog.Portal>
-          <Dialog.Overlay />
-          <Dialog.Content>
-            <Dialog.Title>
+          <Dialog.Overlay className="bg-black/50" />
+          <Dialog.Content className="bg-white rounded-2xl p-0 w-[90%] max-w-[340px] mx-auto overflow-hidden">
+            <View className="px-5 pt-5 pb-3">
               <Text className="text-lg font-bold text-gray-900">
                 Remove Address?
               </Text>
-            </Dialog.Title>
-            <Dialog.Description>
-              <Text className="text-sm text-gray-500">
-                Are you sure you want to remove "{deleteTarget?.label}" address?
+            </View>
+
+            <View className="px-5 pb-5">
+              <Text className="text-sm text-gray-500 leading-5">
+                Are you sure you want to remove the "{deleteTarget?.label}"
+                address? This action cannot be undone.
               </Text>
-            </Dialog.Description>
-            <View className="flex-row justify-end gap-3">
-              <Button onPress={() => setDeleteTarget(null)} className="mr-2">
-                <Text className="text-gray-600">Cancel</Text>
-              </Button>
-              <Button onPress={handleDelete} isDisabled={isDeleting}>
-                <Text className="text-white">Remove</Text>
-              </Button>
+            </View>
+
+      
+            <View className="flex-row border-t border-gray-100">
+              <TouchableOpacity
+                onPress={() => setDeleteTarget(null)}
+                activeOpacity={0.7}
+                className="flex-1 py-3.5 items-center justify-center border-r border-gray-100"
+              >
+                <Text className="text-sm font-semibold text-gray-600">
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleDelete}
+                disabled={isDeleting}
+                activeOpacity={0.7}
+                className="flex-1 py-3.5 items-center justify-center"
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color="#d7a11b" />
+                ) : (
+                  <Text className="text-sm font-semibold text-primary">
+                    Remove
+                  </Text>
+                )}
+              </TouchableOpacity>
             </View>
           </Dialog.Content>
         </Dialog.Portal>

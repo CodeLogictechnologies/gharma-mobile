@@ -1,9 +1,14 @@
+import BottomSheet, { BottomSheetView } from "@expo/ui/community/bottom-sheet";
 import { Check, Clock, Tag, X } from "lucide-react-native";
-import React, { useCallback, useMemo } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
-  Modal,
-  Pressable,
   ScrollView,
   Text,
   TextInput,
@@ -27,9 +32,10 @@ export const PromoCodeSheet = ({
   onApply,
   appliedCouponId,
 }: PromoCodeSheetProps) => {
+  const bottomSheetRef = useRef<BottomSheet>(null);
   const insets = useSafeAreaInsets();
   const { data, isLoading, isError } = useCouponCodeList();
-  const [searchQuery, setSearchQuery] = React.useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const coupons = data?.data ?? [];
 
@@ -40,13 +46,34 @@ export const PromoCodeSheet = ({
     );
   }, [coupons, searchQuery]);
 
+  const handleSheetChange = useCallback(
+    (index: number) => {
+      if (index === -1) {
+        setSearchQuery("");
+        onClose();
+      }
+    },
+    [onClose],
+  );
+
   const handleApply = useCallback(
     (coupon: Coupon) => {
       onApply(coupon);
-      onClose();
+      bottomSheetRef.current?.close();
     },
-    [onApply, onClose],
+    [onApply],
   );
+
+  useEffect(() => {
+    if (visible) {
+      setSearchQuery("");
+      setTimeout(() => {
+        bottomSheetRef.current?.snapToIndex(0);
+      }, 50);
+    } else {
+      bottomSheetRef.current?.close();
+    }
+  }, [visible]);
 
   const getDiscountLabel = (coupon: Coupon) => {
     if (coupon.discount_type === "percentage" && coupon.percentage) {
@@ -58,159 +85,170 @@ export const PromoCodeSheet = ({
     return "Discount";
   };
 
-  return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <Pressable className="flex-1 bg-black/40 justify-end" onPress={onClose}>
-        <Pressable
-          onPress={(e) => e.stopPropagation()}
-          className="bg-white rounded-t-2xl overflow-hidden"
-          style={{ maxHeight: "85%", paddingBottom: insets.bottom }}
-        >
-          {/* Header */}
-          <View className="px-4 pt-4 pb-3 border-b border-gray-100">
-            <View className="flex-row items-center justify-between mb-3">
-              <Text className="text-lg font-bold text-gray-900">
-                Apply Promo Code
-              </Text>
-              <TouchableOpacity
-                onPress={onClose}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                className="w-8 h-8 items-center justify-center bg-gray-100 rounded-full"
-              >
-                <X size={18} color="#374151" />
-              </TouchableOpacity>
-            </View>
+  if (!visible) return null;
 
-            <View className="flex-row items-center bg-gray-100 rounded-xl px-3 py-2.5">
-              <Tag size={18} color="#9CA3AF" />
-              <TextInput
-                placeholder="Enter promo code"
-                placeholderTextColor="#9CA3AF"
-                className="flex-1 ml-2 text-sm text-gray-900"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-                autoCapitalize="characters"
-              />
-            </View>
+  return (
+    <BottomSheet
+      ref={bottomSheetRef}
+      index={0}
+      snapPoints={["50%"]}
+      enableDynamicSizing={false}
+      onChange={handleSheetChange}
+      enablePanDownToClose={true}
+      handleComponent={() => (
+        <View className="items-center pt-3 pb-1">
+          <View className="w-10 h-1 rounded-full bg-gray-300" />
+        </View>
+      )}
+      backgroundStyle={{
+        backgroundColor: "#ffffff",
+        borderTopLeftRadius: 20,
+        borderTopRightRadius: 20,
+      }}
+    >
+      <BottomSheetView
+        style={{
+          height: "100%",
+        }}
+      >
+        <View className="px-4 pt-4 pb-3 border-b border-gray-100">
+          <View className="flex-row items-center justify-between mb-3">
+            <Text className="text-lg font-bold text-gray-900">
+              Apply Promo Code
+            </Text>
+            <TouchableOpacity
+              onPress={() => bottomSheetRef.current?.close()}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              className="w-8 h-8 items-center justify-center bg-gray-100 rounded-full"
+            >
+              <X size={18} color="#374151" />
+            </TouchableOpacity>
           </View>
 
-          {isLoading ? (
-            <View className="py-12 items-center justify-center">
-              <ActivityIndicator color="#d7a11b" size="large" />
-              <Text className="text-sm text-gray-500 mt-3">
-                Loading offers...
-              </Text>
-            </View>
-          ) : isError ? (
-            <View className="py-12 items-center justify-center px-6">
-              <Text className="text-sm text-gray-500 text-center">
-                Failed to load coupons. Please try again.
-              </Text>
-              <TouchableOpacity
-                onPress={onClose}
-                activeOpacity={0.8}
-                className="mt-4 bg-primary px-6 py-2.5 rounded-xl"
-              >
-                <Text className="text-white text-sm font-semibold">Close</Text>
-              </TouchableOpacity>
-            </View>
-          ) : filteredCoupons.length === 0 ? (
-            <View className="py-12 items-center justify-center px-6">
-              <Tag size={40} color="#D1D5DB" />
-              <Text className="text-sm text-gray-500 mt-3 text-center">
-                {searchQuery
-                  ? `No coupon found for "${searchQuery}"`
-                  : "No coupons available right now"}
-              </Text>
-            </View>
-          ) : (
-            <ScrollView
-              className="px-4"
-              contentContainerStyle={{ paddingVertical: 12, gap: 10 }}
-              showsVerticalScrollIndicator={false}
+          <View className="flex-row items-center bg-gray-100 rounded-xl px-3 py-0.5">
+            <Tag size={18} color="#9CA3AF" />
+            <TextInput
+              placeholder="Enter promo code"
+              placeholderTextColor="#9CA3AF"
+              className="flex-1 ml-2 text-sm text-gray-900"
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              autoCapitalize="characters"
+            />
+          </View>
+        </View>
+
+        {isLoading ? (
+          <View className="py-12 items-center justify-center">
+            <ActivityIndicator color="#d7a11b" size="large" />
+            <Text className="text-sm text-gray-500 mt-3">
+              Loading offers...
+            </Text>
+          </View>
+        ) : isError ? (
+          <View className="py-12 items-center justify-center px-6">
+            <Text className="text-sm text-gray-500 text-center">
+              Failed to load coupons. Please try again.
+            </Text>
+            <TouchableOpacity
+              onPress={() => bottomSheetRef.current?.close()}
+              activeOpacity={0.8}
+              className="mt-4 bg-primary px-6 py-2.5 rounded-xl"
             >
-              <Text className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                Available Offers ({filteredCoupons.length})
-              </Text>
+              <Text className="text-white text-sm font-semibold">Close</Text>
+            </TouchableOpacity>
+          </View>
+        ) : filteredCoupons.length === 0 ? (
+          <View className="py-12 items-center justify-center px-6">
+            <Tag size={40} color="#D1D5DB" />
+            <Text className="text-sm text-gray-500 mt-3 text-center">
+              {searchQuery
+                ? `No coupon found for "${searchQuery}"`
+                : "No coupons available right now"}
+            </Text>
+          </View>
+        ) : (
+          <ScrollView
+            className="px-4"
+            contentContainerStyle={{ paddingVertical: 12, gap: 10 }}
+            showsVerticalScrollIndicator={false}
+          >
+            <Text className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+              Available Offers ({filteredCoupons.length})
+            </Text>
 
-              {filteredCoupons.map((coupon) => {
-                const isApplied = appliedCouponId === coupon.id;
-                return (
-                  <View
-                    key={coupon.id}
-                    className={`border rounded-xl p-4 ${
-                      isApplied
-                        ? "border-green-500 bg-green-50"
-                        : "border-gray-200 bg-white"
-                    }`}
-                  >
-                    <View className="flex-row items-start justify-between">
-                      <View className="flex-1">
-                        <View className="flex-row items-center gap-2">
-                          <View
-                            className={`px-2.5 py-1 rounded-md ${
-                              isApplied ? "bg-green-600" : "bg-green-100"
-                            }`}
-                          >
-                            <Text
-                              className={`text-xs font-bold ${
-                                isApplied ? "text-white" : "text-green-700"
-                              }`}
-                            >
-                              {coupon.coupon_code}
-                            </Text>
-                          </View>
-                          {isApplied && (
-                            <View className="flex-row items-center gap-1">
-                              <Check size={14} color="#16A34A" />
-                              <Text className="text-xs font-semibold text-green-600">
-                                Applied
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-
-                        <Text className="text-sm font-bold text-gray-900 mt-2">
-                          {getDiscountLabel(coupon)}
-                        </Text>
-
-                        <View className="flex-row items-center gap-1.5 mt-1.5">
-                          <Clock size={12} color="#9CA3AF" />
-                          <Text className="text-xs text-gray-400">
-                            Valid till expiry
-                          </Text>
-                        </View>
-                      </View>
-
-                      <TouchableOpacity
-                        onPress={() => handleApply(coupon)}
-                        disabled={isApplied}
-                        activeOpacity={0.8}
-                        className={`px-4 py-2 rounded-lg ${
-                          isApplied ? "bg-gray-200" : "bg-primary"
-                        }`}
-                      >
-                        <Text
-                          className={`text-sm font-semibold ${
-                            isApplied ? "text-gray-500" : "text-white"
+            {filteredCoupons.map((coupon) => {
+              const isApplied = appliedCouponId === coupon.id;
+              return (
+                <View
+                  key={coupon.id}
+                  className={`border rounded-xl p-4 ${
+                    isApplied
+                      ? "border-green-500 bg-green-50"
+                      : "border-gray-200 bg-white"
+                  }`}
+                >
+                  <View className="flex-row items-start justify-between">
+                    <View className="flex-1">
+                      <View className="flex-row items-center gap-2">
+                        <View
+                          className={`px-2.5 py-1 rounded-md ${
+                            isApplied ? "bg-green-600" : "bg-green-100"
                           }`}
                         >
-                          {isApplied ? "Applied" : "Apply"}
+                          <Text
+                            className={`text-xs font-bold ${
+                              isApplied ? "text-white" : "text-green-700"
+                            }`}
+                          >
+                            {coupon.coupon_code}
+                          </Text>
+                        </View>
+                        {isApplied && (
+                          <View className="flex-row items-center gap-1">
+                            <Check size={14} color="#16A34A" />
+                            <Text className="text-xs font-semibold text-green-600">
+                              Applied
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+
+                      <Text className="text-sm font-bold text-gray-900 mt-2">
+                        {getDiscountLabel(coupon)}
+                      </Text>
+
+                      <View className="flex-row items-center gap-1.5 mt-1.5">
+                        <Clock size={12} color="#9CA3AF" />
+                        <Text className="text-xs text-gray-400">
+                          Valid till expiry
                         </Text>
-                      </TouchableOpacity>
+                      </View>
                     </View>
+
+                    <TouchableOpacity
+                      onPress={() => handleApply(coupon)}
+                      disabled={isApplied}
+                      activeOpacity={0.8}
+                      className={`px-4 py-2 rounded-lg ${
+                        isApplied ? "bg-gray-200" : "bg-primary"
+                      }`}
+                    >
+                      <Text
+                        className={`text-sm font-semibold ${
+                          isApplied ? "text-gray-500" : "text-white"
+                        }`}
+                      >
+                        {isApplied ? "Applied" : "Apply"}
+                      </Text>
+                    </TouchableOpacity>
                   </View>
-                );
-              })}
-            </ScrollView>
-          )}
-        </Pressable>
-      </Pressable>
-    </Modal>
+                </View>
+              );
+            })}
+          </ScrollView>
+        )}
+      </BottomSheetView>
+    </BottomSheet>
   );
 };

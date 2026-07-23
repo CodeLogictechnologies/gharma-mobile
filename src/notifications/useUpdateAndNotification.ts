@@ -7,6 +7,7 @@ import { useEffect } from "react";
 import { Alert, Platform } from "react-native";
 
 export const useUpdateAndNotification = () => {
+  if (__DEV__) return;
   const checkForUpdates = async () => {
     try {
       if (Platform.OS === "android") {

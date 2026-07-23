@@ -2,6 +2,7 @@ import { useActiveAddress } from "@/features/address/store/useActiveAddress";
 import { useGuestCartStore } from "@/features/cart/store/GuestCartItem";
 import { useCheckout } from "@/features/home/hooks";
 import { OrderRequestBody } from "@/features/home/types";
+import { formatPrice } from "@/libs/formatPrice";
 import { useAuthStore } from "@/store/useAuth";
 import { router } from "expo-router";
 import {
@@ -13,7 +14,7 @@ import {
   Plus,
   Tag,
 } from "lucide-react-native";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,7 +29,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import BillIcon from "~/assets/images/icon/BillIcon";
 import CashIcon from "~/assets/images/icon/CashIcon";
 import KhaltiIcon from "~/assets/images/icon/KhaltiIcon";
-import EsewaPayment from "./components/Esewa";
+import EsewaPayment, { EsewaPaymentHandle } from "./components/Esewa";
 import { PromoCodeSheet } from "./components/PromoCodeSheet";
 import { useAddtoCart } from "./hooks";
 import { CartItem, Coupon } from "./types";
@@ -40,6 +41,8 @@ interface CartProps {
   onOrderSuccess?: (data: any) => void;
 }
 
+type PaymentMethod = "COD" | "ESEWA" | "KHALTI";
+
 const Cart = ({
   data,
   handleGesture,
@@ -50,6 +53,9 @@ const Cart = ({
   const user = useAuthStore((s) => s.role_id);
   const isLoggedIn = !!token;
 
+  const esewaRef = useRef<EsewaPaymentHandle>(null);
+
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("COD");
   const [successModalVisible, setSuccessModalVisible] = useState(false);
   const [orderResponse, setOrderResponse] = useState<any>(null);
   const activeAddress = useActiveAddress();
@@ -156,7 +162,7 @@ const Cart = ({
     return {
       total: finalTotal,
       addressid: activeAddress!.id,
-      paymentmethod: "COD",
+      paymentmethod: paymentMethod,
       items: data.map((item) => ({
         variation_id: item.variation_id,
         quantity: Number(item.total_quantity),
@@ -181,6 +187,11 @@ const Cart = ({
     }
     if (!activeAddress) {
       router.push("/myaddress");
+      return;
+    }
+
+    if (paymentMethod === "ESEWA") {
+      esewaRef.current?.initiate();
       return;
     }
 
@@ -383,15 +394,16 @@ const Cart = ({
                         <Text className="text-xs text-gray-400 mt-0.5">Kg</Text>
                         <View className="flex-row items-center gap-2 mt-1">
                           <Text className="text-sm font-bold text-gray-900">
-                            Rs. {item.total_price}
+                            {formatPrice(item?.total_price)}
                           </Text>
                           {item.discount_type &&
                             Number(item.original_price_per_unit) >
                               Number(item.productprice) && (
                               <Text className="text-xs text-gray-400 line-through">
-                                Rs.{" "}
-                                {Number(item.original_price_per_unit) *
-                                  Number(item?.total_quantity)}
+                                {formatPrice(
+                                  Number(item.original_price_per_unit) *
+                                    Number(item?.total_quantity),
+                                )}
                               </Text>
                             )}
                         </View>
@@ -440,7 +452,30 @@ const Cart = ({
                 Payment Through
               </Text>
               <View className="flex-row gap-2">
+                <TouchableOpacity
+                  onPress={() => setPaymentMethod("COD")}
+                  className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-xl py-3 border ${
+                    paymentMethod === "COD"
+                      ? "border-primary bg-primary-tint"
+                      : "border-gray-200"
+                  }`}
+                >
+                  <CashIcon />
+                  <Text
+                    className={`text-x font-semibold ${
+                      paymentMethod === "COD"
+                        ? "text-primary-dark"
+                        : "text-gray-700"
+                    }`}
+                  >
+                    CASH
+                  </Text>
+                </TouchableOpacity>
                 <EsewaPayment
+                  ref={esewaRef}
+                  selectOnly
+                  isSelected={paymentMethod === "ESEWA"}
+                  onSelect={() => setPaymentMethod("ESEWA")}
                   amount={finalTotal}
                   customerId={isLoggedIn ? user?.toLocaleString() : "GUEST"}
                   remarks="Order payment"
@@ -448,22 +483,30 @@ const Cart = ({
                   onFailure={handleEsewaFailure}
                   onCancel={handleEsewaCancel}
                 />
-                <TouchableOpacity className="flex-1 flex-row items-center justify-center gap-1.5 border border-gray-200 rounded-xl py-3">
+
+                <TouchableOpacity
+                  onPress={() => setPaymentMethod("KHALTI")}
+                  activeOpacity={0.7}
+                  className={`flex-1 flex-row items-center justify-center gap-1.5 rounded-xl py-3 border ${
+                    paymentMethod === "KHALTI"
+                      ? "border-primary bg-primary-tint"
+                      : "border-gray-200"
+                  }`}
+                >
                   <KhaltiIcon />
-                  <Text className="text-x font-semibold text-gray-700">
+                  <Text
+                    className={`text-x font-semibold ${
+                      paymentMethod === "KHALTI"
+                        ? "text-primary-dark"
+                        : "text-gray-700"
+                    }`}
+                  >
                     KHALTI
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity className="flex-1 flex-row items-center justify-center gap-1.5 border border-gray-200 rounded-xl py-3">
-                  <CashIcon />
-                  <Text className="text-x font-semibold text-gray-700">
-                    CASH
                   </Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Promo Code Section */}
             <TouchableOpacity
               onPress={() => setPromoSheetVisible(true)}
               className="bg-white rounded-xl px-4 py-3 flex-row items-center justify-between"
@@ -515,11 +558,11 @@ const Cart = ({
                   <View className="flex-row items-center gap-1.5">
                     {discount > 0 && (
                       <Text className="text-xs text-gray-400 line-through">
-                        Rs. {total + itemDiscountSavings}
+                        {formatPrice(total + itemDiscountSavings)}
                       </Text>
                     )}
                     <Text className="text-sm font-semibold text-gray-900">
-                      Rs. {total}
+                      {formatPrice(total)}
                     </Text>
                   </View>
                 </View>
@@ -531,14 +574,14 @@ const Cart = ({
                       : "Voucher/Code"}
                   </Text>
                   <Text className="text-sm font-semibold text-gray-900">
-                    − Rs. {discount}
+                    − {formatPrice(discount)}
                   </Text>
                 </View>
 
                 <View className="flex-row justify-between items-center">
                   <Text className="text-xs text-gray-600">Delivery Charge</Text>
                   <Text className="text-sm font-semibold text-gray-900">
-                    Rs. 50
+                    {formatPrice(0)}
                   </Text>
                 </View>
 
@@ -557,7 +600,7 @@ const Cart = ({
                     </View>
                   </View>
                   <Text className="text-base font-inter-bold text-gray-900">
-                    Rs. {finalTotal}
+                    {formatPrice(finalTotal)}
                   </Text>
                 </View>
               </View>

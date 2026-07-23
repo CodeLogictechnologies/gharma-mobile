@@ -13,6 +13,7 @@ import {
   useProductDetails,
   useSaveRecentlyViewed,
 } from "@/features/productdetails/hooks";
+import { formatPrice } from "@/libs/formatPrice";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Skeleton } from "heroui-native";
 import LottieView from "lottie-react-native";
@@ -513,6 +514,30 @@ const ProductDetails = () => {
   const { data: RecommendationProduct, isLoading: isRecommendationPending } =
     useUserRecommendationList({ tab_id: "" });
 
+  const flatRecommendationProduct = useMemo(
+    () =>
+      RecommendationProduct?.pages.flatMap((page) =>
+        page.result.data
+          .map((item) => {
+            const raw = item as Record<string, any>;
+            return {
+              productid: raw.productid ?? raw.item_id ?? "",
+              variationid: raw.variationid ?? raw.variation_id ?? "",
+              title: raw.title,
+              images: raw.images ?? [],
+              price: raw.price,
+              discount_type: raw.discount_type ?? null,
+              discount_value: raw.discount_value ?? null,
+              discount_percentage: raw.discount_percentage ?? null,
+              original_price: raw.original_price ?? null,
+              wholesaler_price: raw.wholesaler_price,
+            };
+          })
+          .filter((p) => p.variationid !== ""),
+      ) ?? [],
+    [RecommendationProduct],
+  );
+
   const handleFavouriteToggle = () => {
     if (product?.is_favourite) {
       removeFromFav(`${id}`);
@@ -786,7 +811,7 @@ const ProductDetails = () => {
               ) : (
                 <ProductCarousel
                   showHeader={false}
-                  data={RecommendationProduct?.result?.data || []}
+                  data={flatRecommendationProduct}
                   isLoading={isRecommendationPending}
                   gap={5}
                   onAddToCart={(id) => addToCart(id, 1)}
@@ -844,14 +869,17 @@ const ProductDetails = () => {
                   {selectedVariationData?.name || product?.title || "Default"}
                 </Text>
                 <Text className="text-lg font-inter-bold text-slate-900">
-                  Rs. {selectedVariationData?.price || product?.price}
+                  {formatPrice(selectedVariationData?.price || product?.price)}
                 </Text>
                 <Text className="text-xs font-medium text-gray-500">
                   Inclusive of all taxes
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={() => addToCart(selectedVariant, 1)}
+                onPress={() => {
+                  addToCart(selectedVariant, 1);
+                  router?.navigate("/(app)/cartlist");
+                }}
                 activeOpacity={0.8}
                 className="bg-primary px-6 py-3.5 rounded-xl shadow-sm"
               >

@@ -1,9 +1,7 @@
 import SmoothMarker, { distanceMeters } from "@/components/map/SmoothMarker";
 import { TRACKING } from "@/constants/tracking";
 import DeliveryStatusStepper from "@/features/delivery/components/DeliveryStatusStepper";
-import DeliveryTimelineSheet from "@/features/delivery/components/DeliveryTimeLineSheet";
 import { useGetdeliveryLocation } from "@/features/delivery/hooks";
-import BottomSheet from "@expo/ui/community/bottom-sheet";
 import {
   Camera,
   CameraRef,
@@ -18,7 +16,6 @@ import * as Location from "expo-location";
 import { router, useIsFocused, useLocalSearchParams } from "expo-router";
 import {
   ChevronLeft,
-  ListOrdered,
   Locate,
   MapPin,
   RefreshCw,
@@ -112,7 +109,6 @@ const LivePulseDot = () => {
 export default function DeliveryTrackingMap() {
   const mapRef = useRef<MapRef>(null);
   const cameraRef = useRef<CameraRef>(null);
-  const timelineSheetRef = useRef<BottomSheet>(null);
   const isFocused = useIsFocused();
 
   const { orderId } = useLocalSearchParams<{ orderId: string }>();
@@ -252,8 +248,6 @@ export default function DeliveryTrackingMap() {
     route?.durationSec != null
       ? Math.max(1, Math.round(route.durationSec / 60))
       : null;
-
-  const openTimelineSheet = () => timelineSheetRef.current?.snapToIndex(1);
 
   if (isLoadingLocation) {
     return (
@@ -470,18 +464,11 @@ export default function DeliveryTrackingMap() {
               <Text className="text-xs text-gray-500 mt-0.5" numberOfLines={2}>
                 {hasDriverStarted
                   ? isLive
-                    ? "Live location updates every few seconds"
+                    ? "Live location active"
                     : "Your order is being delivered"
                   : "Your order is being prepared. A driver will be assigned soon."}
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={openTimelineSheet}
-              className="bg-primary px-4 py-2.5 rounded-lg flex-row items-center gap-1.5"
-            >
-              <ListOrdered size={14} color="white" />
-              <Text className="text-white text-xs font-semibold">Timeline</Text>
-            </TouchableOpacity>
           </View>
 
           {isLoadingRoute && hasDriverStarted && (
@@ -492,13 +479,6 @@ export default function DeliveryTrackingMap() {
           )}
         </View>
       </View>
-
-      <DeliveryTimelineSheet
-        sheetRef={timelineSheetRef}
-        orderId={orderId || ""}
-        driverAssigned={hasDriverAssigned}
-        driverStarted={hasDriverStarted}
-      />
     </View>
   );
 }

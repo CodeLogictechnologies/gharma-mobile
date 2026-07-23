@@ -7,7 +7,7 @@ interface DynamicIconProps {
   strokeWidth?: number;
 }
 
-const DynamicIcon = ({
+export const DynamicIcon = ({
   name,
   color = "black",
   size = 20,

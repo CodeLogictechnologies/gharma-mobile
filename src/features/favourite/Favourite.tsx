@@ -3,6 +3,7 @@ import {
   useRemoveToFavourite,
 } from "@/features/favourite/hooks";
 import { FavouriteItem } from "@/features/favourite/types";
+import { formatPrice } from "@/libs/formatPrice";
 import { useAuthStore } from "@/store/useAuth";
 import { useRouter } from "expo-router";
 import {
@@ -87,10 +88,10 @@ const Favourite = () => {
             <Text className="text-gray-400 text-xs mt-1">Multicolor</Text>
             <View className="flex-row items-center mt-1 gap-2">
               <Text className="text-gray-400 line-through text-xs">
-                Rs. {item.price}
+                {formatPrice(item.price)}
               </Text>
               <Text className="text-gray-900 font-bold text-sm">
-                Rs. {item.price}
+                {formatPrice(item.price)}
               </Text>
             </View>
           </View>
@@ -157,10 +158,17 @@ const Favourite = () => {
       <View className="flex-1 bg-gray-50">
         <StatusBar barStyle={"dark-content"} />
         <View className="bg-white p-4 flex-row justify-between items-center border-b border-slate-100">
-          <TouchableOpacity onPress={handleBack} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} className="p-1">
+          <TouchableOpacity
+            onPress={handleBack}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            className="p-1"
+          >
             <ArrowLeft size={20} color="#0f172a" />
           </TouchableOpacity>
-          <Text className="text-lg font-inter-bold text-slate-900">My Favourites</Text>
+          <Text className="text-lg font-inter-bold text-slate-900">
+            My Favourites
+          </Text>
           <View className="flex-row gap-4">
             <TouchableOpacity
               onPress={() => {
@@ -197,10 +205,17 @@ const Favourite = () => {
       <View className="flex-1 bg-gray-50">
         <StatusBar barStyle={"dark-content"} />
         <View className="bg-white p-4 flex-row justify-between items-center border-b border-slate-100">
-          <TouchableOpacity onPress={handleBack} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} className="p-1">
+          <TouchableOpacity
+            onPress={handleBack}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            className="p-1"
+          >
             <ArrowLeft size={20} color="#0f172a" />
           </TouchableOpacity>
-          <Text className="text-lg font-inter-bold text-slate-900">My Favourites</Text>
+          <Text className="text-lg font-inter-bold text-slate-900">
+            My Favourites
+          </Text>
           <View className="flex-row gap-4">
             <TouchableOpacity
               onPress={() => {
@@ -223,10 +238,17 @@ const Favourite = () => {
     <View className="flex-1 bg-gray-50">
       <StatusBar barStyle={"dark-content"} />
       <View className="bg-white p-4 flex-row justify-between items-center border-b border-slate-100">
-        <TouchableOpacity onPress={handleBack} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }} className="p-1">
+        <TouchableOpacity
+          onPress={handleBack}
+          activeOpacity={0.7}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          className="p-1"
+        >
           <ArrowLeft size={20} color="#0f172a" />
         </TouchableOpacity>
-        <Text className="text-lg font-inter-bold text-slate-900">My Favourites</Text>
+        <Text className="text-lg font-inter-bold text-slate-900">
+          My Favourites
+        </Text>
         <View className="flex-row gap-4">
           <TouchableOpacity
             onPress={() => {
