@@ -8,6 +8,7 @@ import {
   HomePageProductResponse,
   HomeTabsResponse,
   OrderRequestBody,
+  PromotionsListResponse,
   RecommendationResponse,
 } from "../types";
 
@@ -147,5 +148,16 @@ export const useHomeTabList = () => {
         result: [allTab, ...(data.result ?? [])],
       };
     },
+  });
+};
+
+export const usePromotionsList = () => {
+  return useQuery({
+    queryKey: ["promotions"],
+    queryFn: () =>
+      request<PromotionsListResponse>({
+        url: `/promotions`,
+        method: "GET",
+      }),
   });
 };

@@ -1,6 +1,7 @@
 import Cart from "@/features/cart/Cart";
 import { useGuestCartStore } from "@/features/cart/store/GuestCartItem";
 import { CartItem } from "@/features/cart/types";
+import { formatPrice } from "@/libs/formatPrice";
 import { useAuthStore } from "@/store/useAuth";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Dimensions, Text, TouchableOpacity } from "react-native";
@@ -262,7 +263,7 @@ const FloatingCart = ({
                 textAlign: "right",
               }}
             >
-              Rs {total}
+              {formatPrice(total)}
             </Text>
           </TouchableOpacity>
         </GestureDetector>

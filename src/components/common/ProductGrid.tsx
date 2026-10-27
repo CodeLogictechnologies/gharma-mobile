@@ -10,9 +10,9 @@ import {
 } from "react-native";
 
 import { ProductItem } from "@/types/product";
+import { ShoppingCart } from "lucide-react-native";
 import ProductCard from "./ProductCard";
 import SkeletonProductCard from "./skeleton/ProductCarouselSkeleton";
-import { ShoppingCart } from "lucide-react-native";
 
 interface ProductGridProps {
   products: ProductItem[];
@@ -42,7 +42,14 @@ interface GridCellProps {
 }
 
 const GridCell = memo(
-  ({ item, isLastInRow, cardWidth, quantity, onAdd, onRemove }: GridCellProps) => {
+  ({
+    item,
+    isLastInRow,
+    cardWidth,
+    quantity,
+    onAdd,
+    onRemove,
+  }: GridCellProps) => {
     const isSkeleton = String(item.variationid).startsWith("skeleton-");
 
     return (

@@ -20,6 +20,8 @@ interface ProductVariation {
   variationid: string;
   productid: string;
   price: string;
+  price_before_discount: number;
+  price_after_discoun: number;
 }
 
 export interface RecentlyViewedBody {

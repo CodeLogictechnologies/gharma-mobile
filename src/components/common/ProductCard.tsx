@@ -69,8 +69,6 @@ const ProductCard = ({
   }, [quantity]);
 
   const wholesaler = isWholesalerItem(item);
-  const { low, high, minQty } = getPriceRange(item);
-  const effectivePrice = resolvePrice(item, Math.max(quantity, 1));
 
   const imageList = Array.isArray(images)
     ? images.filter(Boolean)
@@ -173,6 +171,18 @@ const ProductCard = ({
     [activeImageIndex, CARD_WIDTH, imageList.length],
   );
 
+  const discountPercent = (() => {
+    const before = Number(item?.price_before_discount);
+    const after = Number(item?.price_after_discount);
+    if (item?.discount_type === "percentage" && item?.discount_percentage) {
+      return parseInt(String(item.discount_percentage)) || 0;
+    }
+    if (before > 0 && after > 0 && before > after) {
+      return Math.round((1 - after / before) * 100);
+    }
+    return 0;
+  })();
+
   const renderImageItem: ListRenderItem<string> = useCallback(
     ({ item: imgUri }) => (
       <TouchableOpacity
@@ -212,14 +222,18 @@ const ProductCard = ({
       );
     }
 
+    const showCutOffPrice =
+      item?.price_before_discount &&
+      Number(item.price_before_discount) !== Number(item.price_after_discount);
+
     return (
-      <View className="flex-row items-center">
+      <View className="flex-col items-start">
         <Text className="text-slate-900 font-extrabold text-sm font-inter">
-          {formatPrice(low)}
+          {formatPrice(item?.price_after_discount)}
         </Text>
-        {item?.original_price && (
-          <Text className="text-slate-400 line-through text-xxs ml-2 font-inter">
-            {formatPrice(item?.original_price)}
+        {showCutOffPrice && (
+          <Text className="text-slate-400 line-through text-xs font-inter">
+            {formatPrice(item?.price_before_discount)}
           </Text>
         )}
       </View>
@@ -367,10 +381,18 @@ const ProductCard = ({
         className="px-1"
         style={{ marginTop: 18 }}
       >
-        {!wholesaler && item?.discount_type === "percentage" && (
+        {/* {!wholesaler && item?.discount_type === "percentage" && (
           <View className="self-start bg-primary-tint rounded px-1 py-px">
             <Text className="text-primary-dark text-[10px] font-inter-bold uppercase">
               {`${parseInt(String(item?.discount_percentage)) || 0}% OFF`}
+            </Text>
+          </View>
+        )} */}
+
+        {!wholesaler && discountPercent > 0 && (
+          <View className="self-start bg-primary-tint rounded px-1 py-px">
+            <Text className="text-primary-dark text-[10px] font-inter-bold uppercase">
+              {discountPercent}% OFF
             </Text>
           </View>
         )}

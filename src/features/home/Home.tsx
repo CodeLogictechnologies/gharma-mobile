@@ -40,9 +40,12 @@ import { useGetCatrgoryList } from "../category/hooks";
 import CategoryTabs from "./components/CategoryTabItem";
 import FloatingCart from "./components/FloatingCart";
 import HomePageBanner from "./components/HomePageBanner";
+import PromotionSection from "./components/PromotionSection";
+import { PromotionSectionSkeleton } from "./components/skeleton/PromotionSectionSkeleton";
 import {
   useHomePageProductList,
   useHomeTabList,
+  usePromotionsList,
   useUserRecommendationList,
 } from "./hooks";
 
@@ -89,6 +92,10 @@ export default function Home() {
   const { data: brandData, isPending: isBrandLoading } = useBrandList();
   const brands = brandData?.data ?? [];
 
+  const { data: PromotionsData, isLoading: isPromotionsLoading } =
+    usePromotionsList();
+  const promotions = PromotionsData?.result ?? [];
+
   const {
     data: recommendationData,
     fetchNextPage: fetchNextRecommendation,
@@ -110,6 +117,10 @@ export default function Home() {
               title: raw.title,
               images: raw.images ?? [],
               price: raw.price,
+              price_before_discount:
+                raw.price_before_discount ?? raw.price ?? "0",
+              price_after_discount:
+                raw.price_after_discount ?? raw.price ?? "0",
               discount_type: raw.discount_type ?? null,
               discount_value: raw.discount_value ?? null,
               discount_percentage: raw.discount_percentage ?? null,
@@ -316,6 +327,14 @@ export default function Home() {
           />
         }
       >
+        {isPromotionsLoading
+          ? Array.from({ length: 2 }).map((_, i) => (
+              <PromotionSectionSkeleton key={i} />
+            ))
+          : promotions.map((promo) => (
+              <PromotionSection key={promo.id} promotion={promo} />
+            ))}
+
         <View className="pt-4">
           <View className="flex-row items-center justify-between px-4 mb-3">
             <Text className="text-base font-inter-bold text-slate-900">
@@ -567,8 +586,6 @@ export default function Home() {
           </View>
         </Container>
       </Animated.ScrollView>
-
-      {/* {showCart && <FloatingCart data={AddToCArtList?.data || []} />} */}
 
       <FloatingCart
         data={AddToCArtList?.data || []}

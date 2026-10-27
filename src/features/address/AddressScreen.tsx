@@ -532,7 +532,7 @@ export default function AddressScreen() {
             >
               {deliveryAvailable
                 ? "This location is within our delivery zone"
-                : "We don't deliver to this location yet"}
+                : "We can still deliver to you, but because it's further from our store, please expect a slight delay."}
             </Text>
           </View>
         )}

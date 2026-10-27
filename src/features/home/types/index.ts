@@ -23,6 +23,8 @@ export interface RecommendationData {
   total_qty: number;
   value: string;
   variation_id: string;
+  price_before_discount: string;
+  price_after_discount: string;
   discount_type?: "fixed" | "percentage" | null;
   discount_value?: string | null;
   discount_percentage?: string | null;
@@ -70,4 +72,41 @@ export interface HomeTabsResponse {
   type: "success" | "error" | string;
   message: string;
   result: HomeTabsItem[];
+}
+
+export interface PromotionsListResponse {
+  type: string;
+  message: string;
+  result: Promotion[];
+}
+
+export interface ProductVariation {
+  variationid: string;
+  productid: string;
+  name: string;
+  price: string;
+}
+
+export interface PromotionItem {
+  productid: string;
+  variationid: string;
+  title: string;
+  brand_id: string;
+  price: string;
+  images: string[];
+  discount_type: string | null;
+  discount_value: number | string | null;
+  discount_percentage: number | string | null;
+  price_before_discount: string;
+  price_after_discount: string;
+  variations: ProductVariation[];
+}
+
+export interface Promotion {
+  id: string;
+  name: string;
+  image: string;
+  bg_color: string;
+  applies_to: "item" | "category" | string;
+  items: PromotionItem[];
 }

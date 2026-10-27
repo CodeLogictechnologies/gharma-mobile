@@ -43,6 +43,8 @@ interface CartProps {
 
 type PaymentMethod = "COD" | "ESEWA" | "KHALTI";
 
+const DELIVERY_CHARGE = 0;
+
 const Cart = ({
   data,
   handleGesture,
@@ -129,7 +131,9 @@ const Cart = ({
     return itemDiscountSavings + couponDiscount;
   }, [appliedCoupon, total, itemDiscountSavings]);
 
-  const finalTotal = total - discount + 50;
+  const deliveryCharge = total > 0 ? DELIVERY_CHARGE : 0;
+
+  const finalTotal = total - discount + deliveryCharge;
 
   const handleAdd = (variationId: string | number) => {
     if (isLoggedIn) {
@@ -396,28 +400,17 @@ const Cart = ({
                           <Text className="text-sm font-bold text-gray-900">
                             {formatPrice(item?.total_price)}
                           </Text>
-                          {item.discount_type &&
-                            Number(item.original_price_per_unit) >
-                              Number(item.productprice) && (
-                              <Text className="text-xs text-gray-400 line-through">
-                                {formatPrice(
-                                  Number(item.original_price_per_unit) *
-                                    Number(item?.total_quantity),
-                                )}
-                              </Text>
-                            )}
+                          {Number(item.original_price_per_unit) *
+                            Number(item.total_quantity) >
+                            Number(item.total_price) && (
+                            <Text className="text-xs text-gray-400 line-through">
+                              {formatPrice(
+                                Number(item.original_price_per_unit) *
+                                  Number(item.total_quantity),
+                              )}
+                            </Text>
+                          )}
                         </View>
-                        {item.discount_type && (
-                          <View className="flex-row items-center gap-1 mt-0.5">
-                            <View className="bg-primary-tint px-1.5 py-0.5 rounded">
-                              <Text className="text-xxs font-bold text-primary-dark">
-                                {item.discount_type === "fixed"
-                                  ? `Rs. ${item.discount_value_per_unit} OFF/unit`
-                                  : `${item.discount_percentage_per_unit}% OFF/unit`}
-                              </Text>
-                            </View>
-                          </View>
-                        )}
                       </View>
 
                       <View className="flex-row items-center rounded-lg overflow-hidden bg-primary">
@@ -581,7 +574,7 @@ const Cart = ({
                 <View className="flex-row justify-between items-center">
                   <Text className="text-xs text-gray-600">Delivery Charge</Text>
                   <Text className="text-sm font-semibold text-gray-900">
-                    {formatPrice(0)}
+                    {deliveryCharge > 0 ? formatPrice(deliveryCharge) : "Free"}
                   </Text>
                 </View>
 

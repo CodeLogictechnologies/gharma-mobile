@@ -737,13 +737,14 @@ const ProductDetails = () => {
                         <Text className="text-gray-500 text-sm font-medium mb-1">
                           {item?.name}
                         </Text>
-                        <View className="flex-row items-baseline">
+                        <View className="flex-col items-baseline">
                           <Text className="text-sm font-inter-bold text-slate-900">
-                            {item?.price}
+                            {formatPrice(Number(item?.price_after_discount))}
                           </Text>
-                          {!isSelected && (
-                            <Text className="ml-2 text-gray-400 line-through text-xxs">
-                              Rs 200
+                          {Number(item?.price_before_discount) >
+                            Number(item?.price_after_discount) && (
+                            <Text className=" text-gray-400 line-through text-xs">
+                              {formatPrice(Number(item?.price_before_discount))}
                             </Text>
                           )}
                         </View>

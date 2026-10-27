@@ -4,7 +4,8 @@ export interface ProductItem {
   title: string;
   images: string[];
   price?: string;
-
+  price_before_discount: string;
+  price_after_discount: string;
   discount_type: "fixed" | "percentage" | null;
   discount_value: string | null;
   discount_percentage: string | null;

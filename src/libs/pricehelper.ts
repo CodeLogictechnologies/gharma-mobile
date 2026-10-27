@@ -1,17 +1,14 @@
 import { ProductItem } from "@/types/product";
 
-
 export interface PriceRange {
   low: number;
   high: number;
   minQty: number;
 }
 
-
 export function isWholesalerItem(item: ProductItem): boolean {
   return (item.wholesaler_price?.length ?? 0) > 0;
 }
-
 
 export function getPriceRange(item: ProductItem): PriceRange {
   if (isWholesalerItem(item)) {
@@ -28,6 +25,11 @@ export function getPriceRange(item: ProductItem): PriceRange {
   return { low: price, high: price, minQty: 1 };
 }
 
+function getEffectivePrice(item: ProductItem): number {
+  const discounted = parseFloat(String(item.price_after_discount ?? ""));
+  if (!isNaN(discounted) && discounted > 0) return discounted;
+  return parseFloat(item.price ?? "0");
+}
 
 export function resolvePrice(item: ProductItem, qty: number): number {
   if (isWholesalerItem(item)) {
@@ -36,6 +38,6 @@ export function resolvePrice(item: ProductItem, qty: number): number {
     if (band) return parseFloat(band.price);
     return parseFloat(tiers[tiers.length - 1].price);
   }
-
-  return parseFloat(item.price ?? "0");
+  // return getEffectivePrice(item);
+  return parseFloat(item?.price_after_discount ?? "0");
 }
