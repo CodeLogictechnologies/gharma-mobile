@@ -15,15 +15,15 @@ import * as yup from "yup";
 import { useChangePassword } from "./hooks";
 
 const changePasswordSchema = yup.object({
-  current_password: yup.string().required("Current Password is required"),
+  current_password: yup.string().required("Current Password is required."),
   password: yup
     .string()
-    .required("New Password is required")
-    .min(6, "Password must be at least 6 characters"),
+    .required("New Password is required.")
+    .min(6, "Password must be at least 6 characters."),
   password_confirmation: yup
     .string()
-    .oneOf([yup.ref("password")], "Passwords must match")
-    .required("Confirm Password is required"),
+    .oneOf([yup.ref("password")], "Passwords must match.")
+    .required("Confirm Password is required."),
 });
 
 export type ChangePasswordFormData = yup.InferType<typeof changePasswordSchema>;
@@ -70,6 +70,7 @@ const ChangePassword = () => {
             control={control}
             name="current_password"
             label="Current Password"
+            required
             errorMessage={errors.current_password?.message}
             placeholder="********"
             secureTextEntry
@@ -79,6 +80,7 @@ const ChangePassword = () => {
             control={control}
             name="password"
             label="New Password"
+            required
             errorMessage={errors.password?.message}
             placeholder="Min 6 characters"
             secureTextEntry
@@ -88,6 +90,7 @@ const ChangePassword = () => {
             control={control}
             name="password_confirmation"
             label="Confirm New Password"
+            required
             errorMessage={errors.password_confirmation?.message}
             placeholder="Repeat new password"
             secureTextEntry

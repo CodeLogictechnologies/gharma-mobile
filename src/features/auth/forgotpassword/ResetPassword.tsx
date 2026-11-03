@@ -18,16 +18,16 @@ import { useResetPassword } from "./hooks";
 const resetPasswordSchema = yup.object({
   otp: yup
     .string()
-    .length(6, "OTP must be 6 digits")
-    .required("OTP is required"),
+    .length(6, "OTP must be 6 digits.")
+    .required("OTP is required."),
   password: yup
     .string()
-    .required("New Password is required")
-    .min(6, "Password must be at least 6 characters"),
+    .required("New Password is required.")
+    .min(6, "Password must be at least 6 characters."),
   password_confirmation: yup
     .string()
-    .oneOf([yup.ref("password")], "Passwords must match")
-    .required("Confirm Password is required"),
+    .oneOf([yup.ref("password")], "Passwords must match.")
+    .required("Confirm Password is required."),
 });
 
 export interface ResetPasswordFormData extends yup.InferType<
@@ -82,6 +82,7 @@ const ResetPassword = () => {
             control={control}
             name="password"
             label="New Password"
+            required
             errorMessage={errors.password?.message}
             placeholder="Min 6 characters"
             secureTextEntry
@@ -90,6 +91,7 @@ const ResetPassword = () => {
             control={control}
             name="password_confirmation"
             label="Confirm New Password"
+            required
             errorMessage={errors.password_confirmation?.message}
             placeholder="Repeat new password"
             secureTextEntry

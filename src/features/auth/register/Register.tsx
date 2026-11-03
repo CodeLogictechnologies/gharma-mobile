@@ -14,29 +14,32 @@ import { useRetailerRegister, useWholesalerRegister } from "./hooks";
 type Role = "retailer" | "wholesaler";
 
 const baseSchema = {
-  username: yup.string().required("Username is required"),
-  first_name: yup.string().required("First name is required"),
+  // full name
+  username: yup.string().required("Username is required."),
+  first_name: yup.string().required("First name is required."),
   middle_name: yup.string().ensure(),
   last_name: yup.string().ensure(),
-  email: yup.string().email("Invalid email").required("Email is required"),
+  email: yup.string().email("Invalid email").required("Email is required."),
   phone: yup
     .string()
-    .required("Mobile number is required")
-    .matches(/^[0-9]{10}$/, "Must be a valid 10-digit number"),
-  address: yup.string().required("Address is required"),
+    .required("Mobile number is required.")
+    .matches(/^[0-9]{10}$/, "Must be a valid 10-digit number."),
+  address: yup.string().required("Address is required."),
   gender: yup
     .string()
     .oneOf(["male", "female", "other"])
-    .required("Gender is required"),
+    .required("Gender is required."),
   password: yup
     .string()
-    .required("Password is required")
-    .min(6, "At least 6 characters"),
+    .required("Password is required.")
+    .min(6, "At least 6 characters."),
   password_confirmation: yup
     .string()
-    .oneOf([yup.ref("password")], "Passwords must match")
-    .required("Confirm your password"),
+    .oneOf([yup.ref("password")], "Passwords must match.")
+    .required("Confirm your password."),
   image: yup.string().ensure(),
+  // image validation upto kb
+  // label capitalize first letter of each word
 };
 
 const retailerSchema = yup.object(baseSchema);
@@ -172,7 +175,8 @@ const Register = () => {
             <FormInput
               control={control}
               name="first_name"
-              label="First name"
+              label="First Name"
+              required
               errorMessage={errors.first_name?.message}
             />
           </View>
@@ -180,7 +184,7 @@ const Register = () => {
             <FormInput
               control={control}
               name="middle_name"
-              label="Middle name"
+              label="Middle Name"
               errorMessage={errors.middle_name?.message}
             />
           </View>
@@ -188,7 +192,7 @@ const Register = () => {
             <FormInput
               control={control}
               name="last_name"
-              label="Last name"
+              label="Last Name"
               errorMessage={errors.last_name?.message}
             />
           </View>
@@ -198,20 +202,23 @@ const Register = () => {
           control={control}
           name="username"
           label="Username"
+          required
           errorMessage={errors.username?.message}
           autoCapitalize="none"
         />
         <FormInput
           control={control}
           name="email"
-          label="Email address"
+          label="Email Address"
+          required
           errorMessage={errors.email?.message}
           keyboardType="email-address"
         />
         <FormInput
           control={control}
           name="phone"
-          label="Mobile number"
+          label="Mobile Number"
+          required
           errorMessage={errors.phone?.message}
           prefix="+977"
           keyboardType="phone-pad"
@@ -221,14 +228,18 @@ const Register = () => {
           control={control}
           name="address"
           label="Address"
+          required
           errorMessage={errors.address?.message}
           placeholder="Kathmandu, Nepal"
         />
 
         <View className="mb-3">
-          <Text className="text-xs font-medium text-gray-500 mb-1.5">
-            Gender
-          </Text>
+          <View className="flex-row items-center mb-1.5">
+            <Text className="text-xs font-bold text-gray-700 tracking-wider">
+              GENDER
+            </Text>
+            <Text className="text-red-500 font-bold ml-1">*</Text>
+          </View>
           <Controller
             control={control}
             name="gender"
@@ -272,6 +283,7 @@ const Register = () => {
               control={control}
               name="password"
               label="Password"
+              required
               errorMessage={errors.password?.message}
               secureTextEntry
             />
@@ -280,7 +292,8 @@ const Register = () => {
             <FormInput
               control={control}
               name="password_confirmation"
-              label="Confirm password"
+              label="Confirm Password"
+              required
               errorMessage={errors.password_confirmation?.message}
               secureTextEntry
             />
@@ -294,7 +307,7 @@ const Register = () => {
             <FormInput
               control={control}
               name="company_name"
-              label="Company name"
+              label="Company Name"
               errorMessage={(errors as any).company_name?.message}
             />
 
@@ -303,7 +316,7 @@ const Register = () => {
                 <FormInput
                   control={control}
                   name="tax_number"
-                  label="Tax number"
+                  label="Tax Number"
                   errorMessage={(errors as any).tax_number?.message}
                 />
               </View>
@@ -311,7 +324,7 @@ const Register = () => {
                 <FormInput
                   control={control}
                   name="registration_number"
-                  label="Registration no."
+                  label="Registration Number"
                   errorMessage={(errors as any).registration_number?.message}
                 />
               </View>
@@ -320,7 +333,7 @@ const Register = () => {
             <FormInput
               control={control}
               name="pan_number"
-              label="PAN number (optional)"
+              label="PAN Number (optional)"
               errorMessage={(errors as any).pan_number?.message}
             />
 

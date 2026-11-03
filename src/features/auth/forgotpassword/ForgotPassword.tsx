@@ -16,7 +16,7 @@ import * as yup from "yup";
 import { useForgotPassword } from "./hooks";
 
 const forgotPasswordSchema = yup.object({
-  email: yup.string().email("Invalid email").required("Email is required"),
+  email: yup.string().email("Invalid email").required("Email is required."),
 });
 
 export interface ForgotPasswordFormData extends yup.InferType<
@@ -68,6 +68,7 @@ const ForgotPassword = () => {
             control={control}
             name="email"
             label="Email Address"
+            required
             errorMessage={errors.email?.message}
             keyboardType="email-address"
             placeholder="you@example.com"

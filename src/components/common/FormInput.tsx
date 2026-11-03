@@ -15,6 +15,7 @@ interface FormInputProps<T extends FieldValues> extends TextInputProps {
   label: string;
   errorMessage?: string;
   prefix?: string;
+  required?: boolean;
 }
 
 const FormInput = <T extends FieldValues>({
@@ -24,15 +25,19 @@ const FormInput = <T extends FieldValues>({
   errorMessage,
   prefix,
   secureTextEntry,
+  required,
   ...textInputProps
 }: FormInputProps<T>) => {
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   return (
     <View className="mb-2">
-      <Text className="text-sm font-semibold text-gray-700 mb-1.5">
-        {label}
-      </Text>
+      <View className="flex-row items-center mb-1.5">
+        <Text className="text-xs font-bold text-gray-700 tracking-wider">
+          {label}
+        </Text>
+        {required && <Text className="text-red-500 font-bold ml-1">*</Text>}
+      </View>
 
       <View
         className={`flex-row items-center border border-gray-300 rounded-md bg-gray-50 px-3 ${errorMessage ? "border-red-400" : ""}`}

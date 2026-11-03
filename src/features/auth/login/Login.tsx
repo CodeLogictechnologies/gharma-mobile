@@ -32,12 +32,12 @@ WebBrowser.maybeCompleteAuthSession();
 const loginSchema = yup.object({
   phone: yup
     .string()
-    .required("Mobile number is required")
-    .matches(/^[0-9]{10}$/, "Must be a valid 10-digit number"),
+    .required("Mobile number is required.")
+    .matches(/^[0-9]{10}$/, "Must be a valid 10-digit number."),
   password: yup
     .string()
-    .required("Password is required")
-    .min(6, "Password must be at least 6 characters"),
+    .required("Password is required.")
+    .min(6, "Password must be at least 6 characters."),
 });
 
 export type LoginFormData = yup.InferType<typeof loginSchema>;

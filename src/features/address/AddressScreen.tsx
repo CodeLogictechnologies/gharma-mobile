@@ -433,7 +433,6 @@ export default function AddressScreen() {
             </GeoJSONSource>
           ))}
         </Map>
-
         <View
           className="absolute inset-0 justify-center items-center"
           pointerEvents="none"
@@ -451,7 +450,6 @@ export default function AddressScreen() {
             />
           </View>
         </View>
-
         {!zonesLoading && pinAddress ? (
           <Animated.View
             style={{
@@ -468,27 +466,26 @@ export default function AddressScreen() {
             className={`absolute top-3 left-4 right-4 flex-row items-center gap-2 px-4 py-2.5 rounded-xl shadow-md ${
               deliveryAvailable
                 ? "bg-green-50 border border-green-200"
-                : "bg-red-50 border border-red-200"
+                : "bg-amber-50 border border-amber-200"
             }`}
             pointerEvents="none"
           >
             {deliveryAvailable ? (
               <CheckCircle2 size={18} color="#16A34A" />
             ) : (
-              <AlertCircle size={18} color="#EF4444" />
+              <AlertCircle size={18} color="#D97706" />
             )}
             <Text
               className={`text-sm font-semibold flex-1 ${
-                deliveryAvailable ? "text-green-700" : "text-red-600"
+                deliveryAvailable ? "text-green-700" : "text-amber-700"
               }`}
             >
               {deliveryAvailable
                 ? "Delivery available here"
-                : "Outside delivery zone"}
+                : "Outside primary delivery zone"}
             </Text>
           </Animated.View>
         ) : null}
-
         <TouchableOpacity
           className="absolute right-4 bottom-5 bg-white p-3 rounded-xl shadow-md"
           activeOpacity={0.7}
@@ -513,21 +510,20 @@ export default function AddressScreen() {
             </Text>
           </View>
         </View>
-
         {pinAddress && !zonesLoading && (
           <View
             className={`flex-row items-center gap-2 px-3 py-2 rounded-lg mb-3 ${
-              deliveryAvailable ? "bg-green-50" : "bg-red-50"
+              deliveryAvailable ? "bg-green-50" : "bg-amber-50"
             }`}
           >
             {deliveryAvailable ? (
               <CheckCircle2 size={15} color="#16A34A" />
             ) : (
-              <AlertCircle size={15} color="#EF4444" />
+              <AlertCircle size={15} color="#D97706" />
             )}
             <Text
               className={`text-xs font-medium flex-1 ${
-                deliveryAvailable ? "text-green-700" : "text-red-600"
+                deliveryAvailable ? "text-green-700" : "text-amber-700"
               }`}
             >
               {deliveryAvailable
@@ -536,7 +532,6 @@ export default function AddressScreen() {
             </Text>
           </View>
         )}
-
         <TouchableOpacity
           className={`py-3.5 rounded-xl items-center ${
             !isMapReady

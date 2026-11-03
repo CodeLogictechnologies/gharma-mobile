@@ -232,6 +232,13 @@ export default function Home() {
     ),
   }));
 
+  const categories = categoryData?.categories ?? [];
+  const hasCategories = categories.length > 0;
+  const hasBrands = brands.length > 0;
+
+  const showCategorySection = isCategoryLoading || hasCategories;
+  const showBrandSection = isBrandLoading || hasBrands;
+
   return (
     <View className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" />
@@ -335,126 +342,130 @@ export default function Home() {
               <PromotionSection key={promo.id} promotion={promo} />
             ))}
 
-        <View className="pt-4">
-          <View className="flex-row items-center justify-between px-4 mb-3">
-            <Text className="text-base font-inter-bold text-slate-900">
-              Shop by Category
-            </Text>
-            <TouchableOpacity
-              onPress={() => router.navigate("/(app)/(tabs)/categories")}
-              activeOpacity={0.7}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <Text className="text-xs font-inter-semibold text-amber-600">
-                See All
+        {showCategorySection && (
+          <View className="pt-4">
+            <View className="flex-row items-center justify-between px-4 mb-3">
+              <Text className="text-base font-inter-bold text-slate-900">
+                Shop by Category
               </Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                onPress={() => router.navigate("/(app)/(tabs)/categories")}
+                activeOpacity={0.7}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Text className="text-xs font-inter-semibold text-amber-600">
+                  See All
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}
-          >
-            {isCategoryLoading
-              ? Array.from({ length: 8 }).map((_, idx) => (
-                  <View key={idx} className="items-center w-20">
-                    <View className="w-20 h-20 rounded-2xl bg-slate-100 mb-2" />
-                    <View className="w-14 h-2 rounded-full bg-slate-100" />
-                  </View>
-                ))
-              : categoryData?.categories?.map((item) => (
-                  <TouchableOpacity
-                    key={item.categoryid}
-                    onPress={() =>
-                      router.navigate({
-                        pathname: "/subcategory",
-                        params: {
-                          categoryTitle: item.title,
-                          categoryId: item.categoryid,
-                        },
-                      })
-                    }
-                    activeOpacity={0.7}
-                    className="items-center w-20"
-                  >
-                    <View className="w-20 h-20 rounded-2xl bg-sky-50 items-center justify-center mb-2 p-2">
-                      <Image
-                        source={{ uri: item.image }}
-                        className="w-full h-full"
-                        resizeMode="contain"
-                      />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}
+            >
+              {isCategoryLoading
+                ? Array.from({ length: 8 }).map((_, idx) => (
+                    <View key={idx} className="items-center w-20">
+                      <View className="w-20 h-20 rounded-2xl bg-slate-100 mb-2" />
+                      <View className="w-14 h-2 rounded-full bg-slate-100" />
                     </View>
-                    <Text
-                      numberOfLines={2}
-                      className="text-xs text-center font-inter-semibold text-slate-800 leading-4"
+                  ))
+                : categories.map((item) => (
+                    <TouchableOpacity
+                      key={item.categoryid}
+                      onPress={() =>
+                        router.navigate({
+                          pathname: "/subcategory",
+                          params: {
+                            categoryTitle: item.title,
+                            categoryId: item.categoryid,
+                          },
+                        })
+                      }
+                      activeOpacity={0.7}
+                      className="items-center w-20"
                     >
-                      {item.title}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-          </ScrollView>
-        </View>
+                      <View className="w-20 h-20 rounded-2xl bg-sky-50 items-center justify-center mb-2 p-2">
+                        <Image
+                          source={{ uri: item.image }}
+                          className="w-full h-full"
+                          resizeMode="contain"
+                        />
+                      </View>
+                      <Text
+                        numberOfLines={2}
+                        className="text-xs text-center font-inter-semibold text-slate-800 leading-4"
+                      >
+                        {item.title}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+            </ScrollView>
+          </View>
+        )}
 
         <HomePageBanner />
 
-        <View className="pt-5">
-          <View className="flex-row items-center justify-between px-4 mb-3">
-            <Text className="text-base font-inter-bold text-slate-900">
-              Shop by Brand
-            </Text>
-            <TouchableOpacity
-              onPress={() => router.navigate("/brand")}
-              activeOpacity={0.7}
-              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            >
-              <Text className="text-xs font-inter-semibold text-amber-600">
-                See All
+        {showBrandSection && (
+          <View className="pt-5">
+            <View className="flex-row items-center justify-between px-4 mb-3">
+              <Text className="text-base font-inter-bold text-slate-900">
+                Shop by Brand
               </Text>
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                onPress={() => router.navigate("/brand")}
+                activeOpacity={0.7}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+              >
+                <Text className="text-xs font-inter-semibold text-amber-600">
+                  See All
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}
-          >
-            {isBrandLoading
-              ? Array.from({ length: 8 }).map((_, idx) => (
-                  <View key={idx} className="items-center w-20">
-                    <View className="w-20 h-20 rounded-xl bg-slate-100 mb-2" />
-                    <View className="w-14 h-2 rounded-full bg-slate-100" />
-                  </View>
-                ))
-              : brands.map((item: any) => (
-                  <TouchableOpacity
-                    key={item.id}
-                    onPress={() =>
-                      router.navigate({
-                        pathname: "/brandproducts",
-                        params: { brandName: item.name, brandId: item.id },
-                      })
-                    }
-                    activeOpacity={0.7}
-                    className="items-center w-20"
-                  >
-                    <View className="w-20 h-20 rounded-xl bg-slate-50 items-center justify-center mb-2 p-2">
-                      <Image
-                        source={{ uri: item.image_url }}
-                        className="w-full h-full"
-                        resizeMode="contain"
-                      />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}
+            >
+              {isBrandLoading
+                ? Array.from({ length: 8 }).map((_, idx) => (
+                    <View key={idx} className="items-center w-20">
+                      <View className="w-20 h-20 rounded-xl bg-slate-100 mb-2" />
+                      <View className="w-14 h-2 rounded-full bg-slate-100" />
                     </View>
-                    <Text
-                      numberOfLines={2}
-                      className="text-xs text-center font-inter-semibold text-slate-800 leading-4"
+                  ))
+                : brands.map((item: any) => (
+                    <TouchableOpacity
+                      key={item.id}
+                      onPress={() =>
+                        router.navigate({
+                          pathname: "/brandproducts",
+                          params: { brandName: item.name, brandId: item.id },
+                        })
+                      }
+                      activeOpacity={0.7}
+                      className="items-center w-20"
                     >
-                      {item.name}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-          </ScrollView>
-        </View>
+                      <View className="w-20 h-20 rounded-xl bg-slate-50 items-center justify-center mb-2 p-2">
+                        <Image
+                          source={{ uri: item.image_url }}
+                          className="w-full h-full"
+                          resizeMode="contain"
+                        />
+                      </View>
+                      <Text
+                        numberOfLines={2}
+                        className="text-xs text-center font-inter-semibold text-slate-800 leading-4"
+                      >
+                        {item.name}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+            </ScrollView>
+          </View>
+        )}
 
         <Container className="pt-5">
           {token && (

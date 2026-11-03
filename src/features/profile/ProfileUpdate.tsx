@@ -18,16 +18,16 @@ import {
 import * as yup from "yup";
 
 const ProfileUpdateSchema = yup.object({
-  username: yup.string().required("Username is required"),
-  first_name: yup.string().required("First name is required"),
+  username: yup.string().required("Username is required."),
+  first_name: yup.string().required("First name is required."),
   middle_name: yup.string().optional(),
-  last_name: yup.string().required("Last name is required"),
-  gender: yup.string().required("Gender is required"),
-  address: yup.string().required("Address is required"),
+  last_name: yup.string().required("Last name is required."),
+  gender: yup.string().required("Gender is required."),
+  address: yup.string().required("Address is required."),
   phone: yup
     .string()
-    .required("Phone number is required")
-    .matches(/^[0-9]{10}$/, "Must be a valid 10-digit number"),
+    .required("Phone number is required.")
+    .matches(/^[0-9]{10}$/, "Must be a valid 10-digit number."),
   image: yup.string().nullable().optional(),
 });
 
@@ -136,10 +136,11 @@ const ProfileUpdate = () => {
           <FormInput
             control={control}
             name="username"
-            label="Username"
+            label="User Name"
             errorMessage={errors.username?.message}
             placeholder="john_doe"
             autoCapitalize="none"
+            required
           />
 
           <View className="flex-row gap-4">
@@ -150,6 +151,7 @@ const ProfileUpdate = () => {
                 label="First Name"
                 errorMessage={errors.first_name?.message}
                 placeholder="John"
+                required
               />
             </View>
             <View className="flex-1">
@@ -172,9 +174,12 @@ const ProfileUpdate = () => {
           />
 
           <View className="mb-4">
-            <Text className="text-sm font-inter-semibold text-slate-700 mb-2">
-              Gender
-            </Text>
+            <View className="flex-row items-center mb-1.5">
+              <Text className="text-sm font-semibold text-gray-700">
+                Gender
+              </Text>
+              <Text className="text-red-500 font-bold ml-1">*</Text>
+            </View> 
             <Controller
               control={control}
               name="gender"
@@ -222,6 +227,7 @@ const ProfileUpdate = () => {
             keyboardType="phone-pad"
             placeholder="9800000000"
             maxLength={10}
+            required
           />
 
           <FormInput
@@ -230,6 +236,7 @@ const ProfileUpdate = () => {
             label="Address"
             errorMessage={errors.address?.message}
             placeholder="Kathmandu, Nepal"
+            required
           />
         </View>
       </ScrollView>

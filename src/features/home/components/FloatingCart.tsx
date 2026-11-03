@@ -251,7 +251,7 @@ const FloatingCart = ({
                 textAlign: "center",
               }}
             >
-              {isLoggedIn ? "Checkout" : "Login to order"}
+              {isLoggedIn ? "Checkout" : "Sign in to order"}
             </Text>
 
             <Text

@@ -19,8 +19,8 @@ import { useVerifyOTP } from "./hooks";
 const verifyOTPSchema = yup.object({
   otp: yup
     .string()
-    .length(6, "OTP must be 6 digits")
-    .required("OTP is required"),
+    .length(6, "OTP must be 6 digits.")
+    .required("OTP is required."),
 });
 
 export interface VerifyOTPFormData extends yup.InferType<
